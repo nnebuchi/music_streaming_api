@@ -1,0 +1,19 @@
+datasource db {
+    provider = "mongodb"
+    url      = "mongodb://localhost:27017/ghm" // Replace with your MongoDB connection string
+}
+
+generator client {
+    provider = "nodejs"
+    output   = "./src/generated"
+}
+
+model User {
+    id          Int      @id @default(autoincrement())
+    email       String   @unique
+    first_name  String
+    last_name   String
+    password    String  
+    // Add other fields as needed
+}
+
