@@ -1,19 +1,17 @@
 datasource db {
-    provider = "mongodb"
-    url      = "mongodb://localhost:27017/ghm" // Replace with your MongoDB connection string
+    provider = "mysql"
+    url      = env("DB_URL")
 }
 
 generator client {
-    provider = "nodejs"
-    output   = "./src/generated"
+    provider = "prisma-client-js"
 }
 
 model User {
-    id          Int      @id @default(autoincrement())
-    email       String   @unique
-    first_name  String
-    last_name   String
-    password    String  
-    // Add other fields as needed
+    //id         String   @id @map("_id") @default(auto()) @db.ObjectId
+    id         Int     @id @default(autoincrement())
+    email      String   @unique
+    first_name String
+    last_name  String
+    password   String
 }
-
