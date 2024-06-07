@@ -4,11 +4,6 @@ const userAuthService =  require('../services/userAuthService')
 
 exports.createUser = async (req, res) => {
   const user_data = {email, first_name, last_name, password } = req.body;
-  // const email = req?.body?.email;
-  // const password = req?.body?.password;
-  // const first_name = req?.body?.first_name;
-  // const last_name = req?.body?.last_name;
-
   
   const validate = runValidation([
 
