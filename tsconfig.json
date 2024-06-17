@@ -7,7 +7,7 @@
       "strict": true,
       "esModuleInterop": true
     },
-    "include": ["ts/**/*"],
+    "include": ["ts/**/*", "buchi.ts"],
     "exclude": ["node_modules"]
   }
   

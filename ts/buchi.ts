@@ -1,3 +1,6 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 interface Input {
     field: string;
     type: string;
@@ -13,6 +16,7 @@ interface Constraints {
     must_have_number: boolean;
     email: boolean;
     must_match: string;
+    unique:string;
 }
 
 interface FieldObjects {
@@ -21,13 +25,34 @@ interface FieldObjects {
     alias: string | null;
 }
 
+interface FindCriteria {
+    [key: string]: string; // Index signature allows string keys
+}
+
 const getOriginalWordFromCompoundWord = (compound_word: string) => {
     return compound_word?.replace('_', ' ');
 }
 
-const buchi_validate = (input: Input, constraints: Constraints, alias: string | null = null, fields: FieldObjects[]) => {
+const checkEmailInDB = async (input:Input, db_model:string) => {
+    const finder: FindCriteria = {};
+    finder[input.field] = input.value;
+    // const model = toPascalCase(db_table);
+    const record =  await prisma[db_model].findUnique({
+        where:finder
+    });
+
+    if (record) {
+        console.log('found');
+        return true
+    } else {
+        console.log('not found');
+        return false
+    }
+}
+
+const buchi_validate = async (input: Input, constraints: Constraints, alias: string | null = null, fields: FieldObjects[]) => {
     const matchFinder = fields.find((field) => {
-        return constraints.must_match === field.input.field;
+        return constraints?.must_match === field.input?.field;
     });
 
     if (input != null) {
@@ -45,32 +70,36 @@ const buchi_validate = (input: Input, constraints: Constraints, alias: string | 
 
         const rules = {
             required: {
-                pass: constraints.required === true ? (input.type != 'file' ? (input?.value?.length > 0) : (input?.files?.length > 0)) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " is required" : alias + " is required"
+                pass: constraints?.required === true ? (input?.type != 'file' ? (input?.value?.length > 0) : (input?.files?.length > 0)) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " is required" : alias + " is required"
             },
             min_length: {
-                pass: constraints.hasOwnProperty('min_length') === true ? (input?.value.length > 0 ? input.value.length >= constraints.min_length : true) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " must have up to " + constraints.min_length + " characters" : alias + " must have up to " + constraints.min_length + " characters"
+                pass: constraints?.hasOwnProperty('min_length') === true ? (input?.value?.length > 0 ? input?.value?.length >= constraints?.min_length : true) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " must have up to " + constraints?.min_length + " characters" : alias + " must have up to " + constraints?.min_length + " characters"
             },
             max_length: {
-                pass: constraints.hasOwnProperty('max_length') === true ? (input.value.length > 0 ? input.value.length <= constraints.max_length : true) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " must not exceed " + constraints.max_length + " characters" : alias + " must not exceed " + constraints.max_length + " characters"
+                pass: constraints?.hasOwnProperty('max_length') === true ? (input?.value?.length > 0 ? input?.value?.length <= constraints?.max_length : true) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " must not exceed " + constraints?.max_length + " characters" : alias + " must not exceed " + constraints?.max_length + " characters"
             },
             email: {
-                pass: constraints.email === true && input.value.length > 0 ? email_pattern.test(input.value) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " must be a valid email" : alias + " must be a valid email"
+                pass: constraints?.email === true && input?.value?.length > 0 ? email_pattern.test(input?.value) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " must be a valid email" : alias + " must be a valid email"
             },
             has_special_character: {
-                pass: constraints.has_special_character === true && input.value.length > 0 ? specialCharsRegex.test(input.value) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " must have special character" : alias + " must have special character"
+                pass: constraints?.has_special_character === true && input?.value?.length > 0 ? specialCharsRegex.test(input?.value) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " must have special character" : alias + " must have special character"
             },
             must_have_number: {
-                pass: constraints.hasOwnProperty('must_have_number') === true ? (input.value.length > 0 ? (constraints.must_have_number === true ? number.test(input.value) : true) : true) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " must have a number" : alias + " must have a number"
+                pass: constraints?.hasOwnProperty('must_have_number') === true ? (input?.value?.length > 0 ? (constraints?.must_have_number === true ? number.test(input?.value) : true) : true) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " must have a number" : alias + " must have a number"
             },
             must_match: {
-                pass: constraints.hasOwnProperty('must_match') ? (input.value.length > 0 ? (matchFinder ? input.value === matchFinder.input.value : false) : true) : true,
-                message: alias === null ? getOriginalWordFromCompoundWord(input.field) + " does not match the " + getOriginalWordFromCompoundWord(constraints?.must_match) + " field" : alias + " does not match the " + getOriginalWordFromCompoundWord(constraints?.must_match) + " field"
+                pass: constraints?.hasOwnProperty('must_match') ? (input?.value?.length > 0 ? (matchFinder ? input?.value === matchFinder.input?.value : false) : true) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " does not match the " + getOriginalWordFromCompoundWord(constraints?.must_match) + " field" : alias + " does not match the " + getOriginalWordFromCompoundWord(constraints?.must_match) + " field"
+            },
+            unique:{
+                pass: constraints?.hasOwnProperty('unique') === true ? (await checkEmailInDB(input, constraints?.unique) ? false:true) : true,
+                message: alias === null ? getOriginalWordFromCompoundWord(input?.field) + " already taken" : alias + " already taken"
             }
 
         };
@@ -82,7 +111,7 @@ const buchi_validate = (input: Input, constraints: Constraints, alias: string | 
                 const rule = rules[constraint as keyof typeof rules];
                 if (rule.pass === false) {
                     feedback.push({
-                        target: input.field,
+                        target: input?.field,
                         message: rule.message
                     });
                 }
@@ -112,12 +141,27 @@ const buchi_validate = (input: Input, constraints: Constraints, alias: string | 
     }
 }
 
-exports.runValidation = (fields: FieldObjects[]) => {
+// const collateErrors = async (fields: FieldObjects[]) => {
+//     for (const field of fields) {
+//         const result = await buchi_validate(field.input, field.rules, field.alias, fields);
+//         if (result.error) {
+//             negatives.push(false);
+//         } else if (result?.status === 'success') {
+//             negatives.push(true);
+//         } else if (result?.feedback) {
+//             negatives.push(false);
+//             errors.push(result.feedback);
+//         }
+//     }
+
+//     return negatives;
+// }
+
+exports.runValidation = async (fields: FieldObjects[]) => {
     const negatives: boolean[] = [];
     const errors: { target: string; message: string }[][] = [];
-    
-    fields.forEach(function (field, index) {
-        const result = buchi_validate(field.input, field.rules, field.alias, fields);
+    for (const field of fields) {
+        const result = await buchi_validate(field.input, field.rules, field.alias, fields);
         if (result.error) {
             negatives.push(false);
         } else if (result?.status === 'success') {
@@ -126,7 +170,7 @@ exports.runValidation = (fields: FieldObjects[]) => {
             negatives.push(false);
             errors.push(result.feedback);
         }
-    });
+    }
 
     if (negatives.includes(false)) {
         const nestedArray: { target: string; message: string }[][] = errors;
@@ -148,5 +192,5 @@ exports.runValidation = (fields: FieldObjects[]) => {
     } else {
         return { status: true };
     }
+    
 }
-

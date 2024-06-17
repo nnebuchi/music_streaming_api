@@ -14,4 +14,15 @@ model User {
     first_name String
     last_name  String
     password   String
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt @default(now())
+}
+
+model Otp {
+    //id         String   @id @map("_id") @default(auto()) @db.ObjectId
+    id         Int      @id @default(autoincrement())
+    email      String   @unique
+    otp        String  
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
 }

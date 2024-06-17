@@ -1,15 +1,15 @@
 const { runValidation } = require('../lib/buchi');
-const userAuthService =  require('../services/userAuthService')
+const userAuthService =  require('../services/userAuthService');
 
 
 exports.createUser = async (req, res) => {
   const user_data = {email, first_name, last_name, password } = req.body;
   
-  const validate = runValidation([
+  const validate = await runValidation([
 
     {
       input: { value: email, field: "email", type: "text" },
-      rules: { required: true, email: true },
+      rules: { required: true, email: true, unique:'User'},
     },
 
     {
@@ -33,17 +33,48 @@ exports.createUser = async (req, res) => {
     },
   ]);
 
-  if (validate?.status === false) {
-    return res.status(409).json({
-        status:"fail",
-        errors:validate.errors,
-        message:"Registration Failed",
-    });
+  if(validate){
+    if(validate?.status === false) {
+      return res.status(409).json({
+          status:"fail",
+          errors:validate.errors,
+          message:"Registration Failed",
+      });
     }else{
       // const user_data = {}
       return userAuthService.createUser(user_data, res)
       
+    }
   }
+  
 
   
 };
+
+
+exports.loginUser = async(req, res) => {
+  const req_data = {email, password} = req.body;
+  const validate = await runValidation([
+    {
+      input: { value: email, field: "email", type: "text" },
+      rules: { required: true, email: true},
+    },
+    {
+      input: { value: password, field: "password", type: "text" },
+      rules: { required: true},
+    }
+  ])
+
+  if(validate){
+    if(validate?.status === false) {
+      return res.status(409).json({
+          status:"fail",
+          errors:validate.errors,
+          message:"Login Failed",
+      });
+    }else{
+      return userAuthService.loginUser(req_data, res)
+      
+    }
+  }
+}
