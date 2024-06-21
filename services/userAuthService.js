@@ -14,7 +14,7 @@ exports.createUser = async(user_data, res) => {
         user_data.password = HashedPassword;
         // console.log(user_data);
         
-        const user = await prisma.user.create({
+        const user = await prisma.users.create({
             data:user_data
         });
 
@@ -23,7 +23,7 @@ exports.createUser = async(user_data, res) => {
             const storeOtp = await saveOtp(code, user.email);
             if(storeOtp){
                 
-                await send_mail({ name: user.first_name, code: code, email:user.email }, res)
+                await send_mail({ name: user.first_name, code: code, email:user.email }, "Account Verification", "Gracious Hearts Music", res)
                 return res.status(201).json({
                     status:"success",
                     message:"registration successful, check your email for a verification code",
@@ -48,16 +48,11 @@ exports.createUser = async(user_data, res) => {
 
 const saveOtp = async (otp, email) => {
     try {
+        await deleteUserOtps(email)
         // const existingOtp = await prisma.findMany()
-        await prisma.otp.deleteMany({
-            where: {email:email},
-        });
-       
-        return await prisma.otp.create({
+        return await prisma.otps.create({
             data:{ email:email, otp:otp.toString()}
         });
-
-        
 
     } catch (error) {
         console.log(error);
@@ -65,9 +60,48 @@ const saveOtp = async (otp, email) => {
     }
 }
 
+const deleteUserOtps = async (email) => {
+    try {
+        return await prisma.otps.deleteMany({
+            where: {email:email},
+        });
+    } catch (error) {
+        console.log(error);
+        return false
+    }
+}
+
+exports.verifyOtp = async (otp, email, res) => {
+    try {
+        const otp_in_db =  await prisma.otps.findUnique({
+            where: {email:email, otp:otp.toString()},
+        })
+        
+        if(otp_in_db){
+            await deleteUserOtps(email);
+            return res.status(200).json({
+                status:"success",
+                message:"OTP verified successfully",
+            });
+        }else{
+            return res.status(400).json({
+                status:"fail",
+                message:"Invalid OTP supplied",
+                error:"Invalid OTP"
+            });
+        }
+    } catch (error) {
+        return res.status(400).json({
+            status:"fail",
+            message:"Somehting Went Wrong",
+            error:error
+        });
+    }
+}
+
 exports.loginUser = async(req_data, res) => {
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma.users.findUnique({
             where:{email:req_data.email}
         });
 
@@ -132,20 +166,4 @@ const authenticateJWT = (req, res, next) => {
     }
 };
 
-const verifyToken = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).send('Unauthorized');
-    }
-  
-    const token = authHeader.split(' ')[1]; // Assuming 'Bearer <token>' format
-  
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-      if (err) {
-        return res.status(403).send('Forbidden');
-      }
-  
-      req.user = decoded; // Attach decoded user data to the request object
-      next();
-    });
-  };
+

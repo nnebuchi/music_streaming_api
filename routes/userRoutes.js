@@ -1,8 +1,9 @@
 const express = require('express');
-const authRouter = express.Router();
-const userAuthController = require('../controllers/userAuthController');
+const userRouter = express.Router();
+const {verifyAuthToken} = require('../utils/auth');
+const userController = require('../controllers/userController');
 
-authRouter.post('/register', userAuthController.createUser);
-authRouter.post('/login', userAuthController.loginUser);
-// authRouter.post('/login', userAuthController.loginUser);
-module.exports = authRouter;
+
+userRouter.post('/change-password', verifyAuthToken, userController.changePassword);
+
+module.exports = userRouter;

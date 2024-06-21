@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-exports.send_mail = async (mail_data, res)=>{
+exports.send_mail = async (mail_data, subject, sender_name, res)=>{
     console.log(__dirname);
     ejs.renderFile(
         path.join(__dirname, '../../views/mail', 'account_verification.ejs'),
@@ -23,9 +23,9 @@ exports.send_mail = async (mail_data, res)=>{
 
             // Email options
             const mailOptions = {
-                from: `"No Reply" ${process.env.MAIL_FROM_ADDRESS}`,
-                to: 'recipient@example.com', // replace with actual recipient email
-                subject: 'Email Verification',
+                from: `${sender_name} ${process.env.MAIL_FROM_ADDRESS}`,
+                to: mail_data.email, // replace with actual recipient email
+                subject: subject,
                 html: data
             };
 

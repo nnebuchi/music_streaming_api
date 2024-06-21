@@ -9,7 +9,7 @@ exports.createUser = async (req, res) => {
 
     {
       input: { value: email, field: "email", type: "text" },
-      rules: { required: true, email: true, unique:'User'},
+      rules: { required: true, email: true, unique:'users'},
     },
 
     {
@@ -47,9 +47,47 @@ exports.createUser = async (req, res) => {
     }
   }
   
-
-  
 };
+
+
+exports.verifyOtp = async(req, res) => {
+  const {otp, email} = req.body
+  try {
+    const validate = await runValidation([
+      {
+        input: { value: otp, field: "otp", type: "text" },
+        rules: { required: true},
+      },
+      {
+        input: { value: email, field: "email", type: "text" },
+        rules: { required: true, email:true},
+      },
+
+    ]);
+
+    if(validate){
+      
+      if(validate?.status === false) {
+        return res.status(409).json({
+            status:"fail",
+            errors:validate.errors,
+            message:"Verification failed",
+        });
+      }else{
+        // const user_data = {}
+        return userAuthService.verifyOtp(otp, email, res)
+        
+      }
+    }
+  } catch (error) {
+    return res.status(400).json({
+      status:"fail",
+      error:error,
+      message:"Verification failed",
+    });
+  }
+
+}
 
 
 exports.loginUser = async(req, res) => {
@@ -78,3 +116,4 @@ exports.loginUser = async(req, res) => {
     }
   }
 }
+

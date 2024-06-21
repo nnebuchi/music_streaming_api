@@ -7,22 +7,31 @@ generator client {
     provider = "prisma-client-js"
 }
 
-model User {
+model Users {
     //id         String   @id @map("_id") @default(auto()) @db.ObjectId
-    id         Int     @id @default(autoincrement())
-    email      String   @unique
-    first_name String
-    last_name  String
-    password   String
+    id                  Int     @id @default(autoincrement())
+    email               String   @unique
+    first_name          String
+    last_name           String
+    password            String
+    is_verified         Int @default(0)      
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
 }
 
-model Otp {
+model Otps {
     //id         String   @id @map("_id") @default(auto()) @db.ObjectId
     id         Int      @id @default(autoincrement())
     email      String   @unique
     otp        String  
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+}
+
+model App_Settings {
+    id          Int @id @default(autoincrement())
+    subject     String @unique
+    data        String @db.Text
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 }

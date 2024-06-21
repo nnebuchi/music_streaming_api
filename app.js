@@ -15,9 +15,14 @@ app.use(cors({ origin: 'http://localhost:3001' }));// Replace with frontend orig
 app.use(bodyParser.json());
 
 // MVC Structure (example)
-const userRoutes = require('./routes/userRoutes');
 
-app.use('/users', userRoutes);
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const genericRoutes = require('./routes/genericRoutes');
+
+app.use('/auth', authRoutes);
+app.use('/user', userRoutes);
+app.use('/app', genericRoutes);
 
 // Error handling middleware (optional)
 // app.use((err, req, res, next) => {
