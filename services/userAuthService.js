@@ -6,35 +6,32 @@ const {send_mail} = require('./mail/accountVerification');
 const jwt = require('jsonwebtoken');
 const secretKey= process.env.AUTH_SEC_KEY;
 const {generateOTP} = require('../utils/generic');
+const { log } = require('console');
 
 
 exports.createUser = async(user_data, res) => {
     try {
         const HashedPassword = await argon2.hash(user_data?.password)
         user_data.password = HashedPassword;
-        // console.log(user_data);
-        
         const user = await prisma.users.create({
             data:user_data
         });
 
         if(user){
-            const code = await generateOTP();
-            const storeOtp = await saveOtp(code, user.email);
-            if(storeOtp){
-                
-                await send_mail({ name: user.first_name, code: code, email:user.email }, "Account Verification", "Gracious Hearts Music", res)
+            const handleOtp = await sendOtp({ name:user.first_name, recipient:user.email, purpose:"account_verification" }, res);
+            if(handleOtp?.status){
+                console.log(handleOtp);
                 return res.status(201).json({
                     status:"success",
-                    message:"registration successful, check your email for a verification code",
+                    message:"Registration successful, check your email for a verification code",
                 });
             }else{
-                return res.status(200).json({
+                return res.status(201).json({
                     status:"success",
                     message:"registration successful, but OTP was not sent. Kindly resend OTP",
+                    error: handleOtp.error
                 });
             }
-            
         }
 
     } catch (error) {
@@ -46,9 +43,62 @@ exports.createUser = async(user_data, res) => {
    
 }
 
+exports.resendOtp = async (email, purpose, res) => {
+    try {
+        const user = await prisma.users.findUnique({
+            where:{email:email}
+        });
+        
+        if(user){
+            return sendOtp({ name:user.first_name, recipient:user.email, purpose:purpose }, res)
+        }
+        else{
+            return {
+                status: false,
+                error:"Could not get user"
+            };
+        }
+    } catch (error) {
+         return {
+                status: false,
+                error:error
+            };
+    }
+    
+}
+
+const sendOtp = async (mail_data, res) => {
+    
+    try {
+        const code = await generateOTP();
+        const storeOtp = await saveOtp(code, mail_data.recipient);
+        
+        
+        mail_data.code = code;
+        if(storeOtp){
+               
+                
+            const mail_res = await send_mail(mail_data, mail_data.purpose.replaceAll('_', " ").toUpperCase(), "Gracious Hearts Music", res)
+            // return
+            return {
+                status: true
+            };
+        }
+    } catch (error) {
+        console.log(error);
+        return {
+            status: true,
+            error:error
+        };
+       
+    }
+   
+    
+}
+
 const saveOtp = async (otp, email) => {
     try {
-        await deleteUserOtps(email)
+        const delete_otps = await deleteUserOtps(email)
         // const existingOtp = await prisma.findMany()
         return await prisma.otps.create({
             data:{ email:email, otp:otp.toString()}
@@ -62,27 +112,60 @@ const saveOtp = async (otp, email) => {
 
 const deleteUserOtps = async (email) => {
     try {
-        return await prisma.otps.deleteMany({
+        await prisma.otps.deleteMany({
             where: {email:email},
         });
+        return true;
     } catch (error) {
         console.log(error);
         return false
     }
 }
 
-exports.verifyOtp = async (otp, email, res) => {
+exports.verifyOtp = async ({otp, email, purpose, new_password}, res) => {
     try {
         const otp_in_db =  await prisma.otps.findUnique({
             where: {email:email, otp:otp.toString()},
         })
         
         if(otp_in_db){
-            await deleteUserOtps(email);
-            return res.status(200).json({
-                status:"success",
-                message:"OTP verified successfully",
-            });
+            console.log(otp_in_db);
+            if(purpose && purpose === "reset_password") {
+               
+                return res.status(200).json({
+                    status:"success",
+                    message:"verified",
+                });
+            }
+            const delete_otps = await deleteUserOtps(email)
+            if(delete_otps === true){
+                if(new_password){
+                    await prisma.users.update({
+                        where: { email: email },
+                        data: {
+                            password: await argon2.hash(new_password)
+                        }
+                    }); 
+
+                }else{
+                    await prisma.users.update({
+                        where: { email: email },
+                        data: {
+                            is_verified: 1
+                        }
+                    }); 
+                }
+                return res.status(200).json({
+                    status:"success",
+                    message:"Completed",
+                });
+                
+            }else{
+                return res.status(400).json({
+                    status:"fail",
+                    message:"Failed to delete existing Otps",
+                });
+            }
         }else{
             return res.status(400).json({
                 status:"fail",
@@ -93,7 +176,7 @@ exports.verifyOtp = async (otp, email, res) => {
     } catch (error) {
         return res.status(400).json({
             status:"fail",
-            message:"Somehting Went Wrong",
+            message:"Something Went Wrong",
             error:error
         });
     }
@@ -106,9 +189,9 @@ exports.loginUser = async(req_data, res) => {
         });
 
         if(user){
-            const passwordCheck = argon2.verify(user.password, req_data.password);
+            const passwordCheck = await argon2.verify(user.password, req_data.password);
             if(passwordCheck){
-                const key = crypto.randomBytes(64).toString('hex');
+                console.log(passwordCheck);
                 const payload = {
                     id: user.id,
                     email: user.email
@@ -121,10 +204,11 @@ exports.loginUser = async(req_data, res) => {
                 return res.status(200).json({
                     status:"success",
                     message:"login successful",
+                    is_verified:user.is_verified == '0' ? false : true,
                     token: jwt.sign(payload, secretKey, options)
                 })
             }else{
-                return res.status(200).json({
+                return res.status(400).json({
                     status:"fail",
                     message:"login failed",
                     error:"Invalid Credentials"
@@ -132,7 +216,7 @@ exports.loginUser = async(req_data, res) => {
             }
            
         }else{
-            return res.status(200).json({
+            return res.status(400).json({
                 status:"fail",
                 message:"login failed",
                 error:"Invalid Credentials"
@@ -165,5 +249,4 @@ const authenticateJWT = (req, res, next) => {
         res.sendStatus(401);
     }
 };
-
 

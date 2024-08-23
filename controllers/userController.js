@@ -36,3 +36,34 @@ exports.changePassword = async (req, res) => {
       }
     
 }
+
+exports.profile = (req, res) => {
+  return userService.profile(req.user, res);
+}
+
+exports.updateProfile = async (req, res) => {
+  return userService.updateProfile(req, res);
+}
+
+exports.socials = async(req, res) => {
+  return userService.socials(req.user, res);
+}
+
+
+exports.deleteAccount = async (req, res) => {
+  return userService.deleteAccount(req.user, res)
+}
+
+exports.updateSocials = (req, res) => {
+  return userService.updateSocials(req.user, req.body, res);
+}
+
+exports.updateProfilePhoto = async(req, res) => {
+  
+  if (req.file) {
+    return await userService.updateProfilePhoto(req.user, req.file, res)
+  } else {
+    // No file uploaded
+    res.send('No file uploaded.');
+  }
+}

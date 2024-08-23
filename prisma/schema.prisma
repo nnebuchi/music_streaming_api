@@ -13,8 +13,12 @@ model Users {
     email               String   @unique
     first_name          String
     last_name           String
+    about               String? @db.Text
     password            String
-    is_verified         Int @default(0)      
+    profile_photo       String? @db.Text
+    is_verified         Int @default(0)
+    is_artise           Boolean @default(false)
+    socialProfiles      UserSocialProfiles[]      
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
 }
@@ -34,4 +38,53 @@ model App_Settings {
     data        String @db.Text
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
+}
+
+model Socials {
+    id          Int @id @default(autoincrement())
+    title       String @unique
+    logo        String @db.Text
+    slug        String @unique
+    userSocialProfiles UserSocialProfiles[]
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+}
+
+model UserSocialProfiles {
+    id        Int     @id @default(autoincrement())
+    url       String
+    user_id   Int
+    social_id Int
+    user      Users   @relation(fields: [user_id], references: [id])
+    social    Socials @relation(fields: [social_id], references: [id])
+
+    @@unique([user_id, social_id]) // Ensure that each user can have only one profile per social platform
+}
+
+model Genres {
+    id      Int     @id @default(autoincrement())
+    title   String
+    slug    String
+}
+
+model Albums{
+    id          Int     @id @default(autoincrement())
+    title       String
+    slug        String
+    user_id     Int
+    cover       String
+    description String @db.Text
+}
+
+model Tracks{
+    id         Int @id @default(autoincrement())
+    title       String
+    user_id     Int
+    slug        String
+    duration    Int
+    cover       String
+    file        String
+    album_id    Int @default(0)
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt @default(now())
 }

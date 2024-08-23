@@ -12,29 +12,33 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.send_mail = async (mail_data, subject, sender_name, res)=>{
-    console.log(__dirname);
+  
     ejs.renderFile(
         path.join(__dirname, '../../views/mail', 'account_verification.ejs'),
         mail_data,
         (err, data) => {
             if (err) {
-                return res.status(500).send('Error rendering email template\n'+err);
+                console.log(err);
+                return 'Error rendering email template\n'+err;
             }
 
             // Email options
             const mailOptions = {
                 from: `${sender_name} ${process.env.MAIL_FROM_ADDRESS}`,
-                to: mail_data.email, // replace with actual recipient email
+                to: mail_data.recipient, // replace with actual recipient email
                 subject: subject,
                 html: data
             };
 
+            console.log(mailOptions);
+            
             // Send email
             transporter.sendMail(mailOptions, (error, info) => {
                 if (error) {
-                    return res.status(500).send('Error sending email');
+                    console.log(err);
+                    return 'Error sending email';
                 }
-                res.status(200).send('Email sent: ' + info.response);
+                return 'Email sent: ' + info.response;
             });
         }
     );

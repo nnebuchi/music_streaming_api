@@ -3,3 +3,8 @@ exports.generateOTP = async () =>{
     console.log(val);
     return val;
 }
+
+exports.renameUploadedFile = async (original_name) => {
+    const timestamp = Date.now();
+    return `${timestamp}_${original_name.replaceAll(' ', '_')}`
+}

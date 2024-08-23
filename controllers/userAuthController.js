@@ -51,19 +51,37 @@ exports.createUser = async (req, res) => {
 
 
 exports.verifyOtp = async(req, res) => {
-  const {otp, email} = req.body
-  try {
-    const validate = await runValidation([
-      {
-        input: { value: otp, field: "otp", type: "text" },
-        rules: { required: true},
-      },
-      {
-        input: { value: email, field: "email", type: "text" },
-        rules: { required: true, email:true},
-      },
+  const otp = req.body.otp
+  const email = req.body.email
+  const new_password = req.body.new_password
+  const purpose = req.body.purpose
 
-    ]);
+  let validation_arr = [
+    {
+      input: { value: otp, field: "otp", type: "text" },
+      rules: { required: true},
+    },
+    {
+      input: { value: email, field: "email", type: "text" },
+      rules: { required: true, email:true},
+    },
+
+  ];
+
+  if(new_password){
+    validation_arr.push({
+      input: { value: new_password, field: "new_password", type: "text" },
+      rules: {
+        required: true,
+        has_special_character: true,
+        min_length: 6,
+        must_have_number: true,
+      },
+    })
+  }
+
+  try {
+    const validate = await runValidation(validation_arr);
 
     if(validate){
       
@@ -75,7 +93,7 @@ exports.verifyOtp = async(req, res) => {
         });
       }else{
         // const user_data = {}
-        return userAuthService.verifyOtp(otp, email, res)
+        return userAuthService.verifyOtp({email, otp, purpose, new_password}, res)
         
       }
     }
@@ -112,6 +130,46 @@ exports.loginUser = async(req, res) => {
       });
     }else{
       return userAuthService.loginUser(req_data, res)
+      
+    }
+  }
+}
+
+exports.sendOtp = async(req, res) => {
+  const {email, purpose} = req.body;
+  const validate = await runValidation([
+    {
+      input: { value: email, field: "email", type: "text" },
+      rules: { required: true, email: true},
+    },
+    {
+      input: { value: purpose, field: "purpose", type: "text" },
+      rules: { required: true},
+    },
+  ]);
+
+  if(validate){
+    if(validate?.status === false) {
+      return res.status(409).json({
+          status:"fail",
+          errors:validate.errors,
+          message:"Request Failed",
+      });
+    }else{
+      const handleOtp = await userAuthService.resendOtp(email, purpose, res);
+      // console.log(handleOtp);
+      if(handleOtp?.status){
+          return res.status(200).json({
+              status:"success",
+              message:"otp resent successfully, check your email for a verification code",
+          });
+      }else{
+          return res.status(400).json({
+              status:"fail",
+              message:"Something went wrong",
+              error: handleOtp?.error
+          });
+      }
       
     }
   }

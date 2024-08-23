@@ -9,8 +9,7 @@ exports.version = async(version_no, platform, res)=>{
 
     if(version_settings){
         let resp_data = null;
-        version_settings = JSON.parse(version_settings.data)   
-        console.log(version_settings);
+        version_settings = JSON.parse(version_settings.data)  
         if(version_no < parseInt(version_settings[platform].min_supported_version)){
             resp_data = {
                 status: "outdated",
@@ -36,3 +35,4 @@ exports.version = async(version_no, platform, res)=>{
     }
 
 }
+
