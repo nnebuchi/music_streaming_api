@@ -6,6 +6,7 @@ const disk = require('../utils/storage');
 const path = require('path');
 const storageHelper = require('../utils/storage');
 const fs = require('fs');
+const {creatorCast, excludeCast} = require('../utils/auth');
 
 exports.create = async(song_data, user, res) => {
 
@@ -39,25 +40,41 @@ exports.list = async(parsedUrl, user, res) => {
     }
 
     query.where = where;
-    // console.log(where);
     
-    if(queryString.latest && queryString.latest == true){
-      query.orderBy = {createdAt:"desc"}
+    if(queryString.latest && queryString.latest == "true"){
+      query.orderBy = {id:"desc"}
     }
 
+    const page = queryString.page ? parseInt(queryString.page) : 1;
+    const page_size = parseInt(process.env.TRACK_PER_PAGE);
+
+    query.skip = (page - 1) * page_size;
+    query.take = page_size;
     
     const tracks = await prisma.tracks.findMany(query);
     if(tracks){
+      const totalTracksCount = await prisma.tracks.count();
+      const totalPages = Math.ceil(totalTracksCount / page_size);
+      const paginatedResult = {
+        tracks: tracks,
+        meta: {
+          total: totalTracksCount,
+          page,
+          last_page: totalPages,
+          page_size,
+          nextPage:page === totalPages ? null : page + 1,
+        },
+      };
       return res.status(200).json({
         status:'success',
-        data:tracks
+        data:paginatedResult
       })
     }
   } catch (error) {
     console.log(error);
     return res.status(400).json({
       status:'fail',
-      error:errorMonitor,
+      error:error,
       message:"Could not fetch tracks."
     })
   }
@@ -143,3 +160,75 @@ exports.upload =  async (req, res) => {
     }
   }
 
+
+exports.creators = async (user, res) => {
+  const all_creators = await prisma.users.findMany({
+    where: {
+      is_artise: true,
+      id: {
+        not: user.id
+      } 
+    },
+    include: {  
+      socialProfiles: {
+        select: { 
+          id: true, 
+          url:true, 
+          social:{
+            select: { 
+              title: true,
+              logo:true,
+              slug:true
+            }
+          }
+        },
+        
+      }, 
+    }
+  })
+  if(all_creators){
+    
+    const formattedCreatorList = []
+    all_creators.forEach(async (creator) => {
+    await excludeCast(creator, creatorCast)
+    .then(formattedCreator => {
+      console.log(formattedCreator);
+      
+      formattedCreatorList.push(formattedCreator)
+      return res.status(200).json({ 
+        status: 'success',
+        data: formattedCreatorList
+      })
+    }
+    )
+    });
+
+    
+  }
+
+  
+}
+
+
+/*
+
+if(all_creators){
+    
+    const formattedCreatorList = []
+    all_creators.forEach(async (creator) => {
+    await excludeCast(creator, creatorCast)
+    .then(formattedCreator => {
+      console.log(formattedCreator);
+      
+      formattedCreatorList.push(formattedCreator)
+      return res.status(200).json({ 
+        status: 'success',
+        data: formattedCreatorList
+      })
+    }
+    )
+    });
+
+    
+  }
+*/

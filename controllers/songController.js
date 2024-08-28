@@ -13,3 +13,7 @@ exports.list = async(req, res) => {
 exports.upload = async(req, res) => {
    return songService.send(req, res);
 };
+
+exports.creators = async(req, res) => {
+    return songService.creators(req.user, res);
+}

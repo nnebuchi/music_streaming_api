@@ -13,7 +13,6 @@ const upload = multer();
 
 songRouter.post('/upload', upload.single('track'), songController.upload);
 songRouter.get('/list', verifyAuthToken, songController.list);
-
-
+songRouter.get('/creators', verifyAuthToken, songController.creators);
 
 module.exports = songRouter;

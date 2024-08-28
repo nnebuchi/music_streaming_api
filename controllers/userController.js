@@ -67,3 +67,13 @@ exports.updateProfilePhoto = async(req, res) => {
     res.send('No file uploaded.');
   }
 }
+
+exports.updateCoverPhoto = async(req, res) => {
+  
+  if (req.file) {
+    return await userService.updateCoverPhoto(req.user, req.file, res)
+  } else {
+    // No file uploaded
+    res.send('No file uploaded.');
+  }
+}

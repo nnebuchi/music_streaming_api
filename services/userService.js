@@ -55,11 +55,6 @@ exports.profile = async (user, res) => {
             where:{email:user.email},
             include: {
                 socialProfiles: {
-                    // include: { 
-                    //     social: {
-                    //         select: { title: true, logo: true, slug:true}
-                    //     } 
-                    // },
                     select: { id: true, url:true, social_id:true}
                 },
               },
@@ -91,6 +86,8 @@ exports.updateProfile = async (req, res) => {
             let update_data = {}
             for(let prop in request_data){
                 if(prop in user && !userCast.includes(prop)){
+                    console.log(prop);
+                    
                     update_data[prop] = request_data[prop];
                 }
             }
@@ -100,10 +97,10 @@ exports.updateProfile = async (req, res) => {
                 data: update_data,
             });
 
-            return res.status(404).json({
+            return res.status(200).json({
                 status: "success",
                 message: "Profile Updated",
-                data: await excludeCast(updateUser)
+                data: await excludeCast(updateUser, userCast)
             })
         }else{
             return res.status(404).json({
@@ -252,7 +249,6 @@ exports.updateProfilePhoto = async (user, file, res) => {
         
         const  file_path_to_array = file.path.split("\\");
         file_path_to_array.shift();
-        // console.log(file_path_to_array);
         
         file_path_on_db = file_path_to_array.join("/");
     }else{
@@ -273,13 +269,66 @@ exports.updateProfilePhoto = async (user, file, res) => {
             }
         })
         .then(update_user_photo => {
-            // console.log(update_user_photo);
             
             // delete old photo from folder
             if(user_profile.profile_photo){
                 // check of file path exists and delete it
                 if (fs.existsSync(`./public/${user_profile.profile_photo}`)) {
                     fs.unlinkSync(`./public/${user_profile.profile_photo}`);
+                }
+                
+            }
+            return res.status(200).json({
+                status:"success",
+                message:"Profile Photo Updated",
+                file:file_path_on_db
+            });
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(200).json({
+            status:"fail",
+            message:"Profile Photo update failed",
+            error: err
+        });
+    })
+
+}
+
+exports.updateCoverPhoto = async (user, file, res) => {
+    let file_path_on_db;
+
+    if(file?.path.split("\\").length > 1 && file?.path.split("\\")[0] === "public"){
+        
+        const  file_path_to_array = file.path.split("\\");
+        file_path_to_array.shift();
+        
+        file_path_on_db = file_path_to_array.join("/");
+    }else{
+        file_path_on_db = file.path.split("\\").replaceAll("\\","/");
+    } 
+    await prisma.users.findFirst({
+       where:{ id:user.id}
+    })
+    .then(user_profile => {
+        console.log(file_path_on_db);
+        
+         prisma.users.update({
+            where:{
+                id:user.id
+            },
+            data:{
+                cover_photo:file_path_on_db
+            }
+        })
+        .then(update_user_photo => {
+            
+            // delete old photo from folder
+            if(user_profile.profile_photo){
+                // check of file path exists and delete it
+                if (fs.existsSync(`./public/${user_profile.cover_photo}`)) {
+                    fs.unlinkSync(`./public/${user_profile.cover_photo}`);
                 }
                 
             }

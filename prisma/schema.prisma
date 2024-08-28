@@ -16,6 +16,7 @@ model Users {
     about               String? @db.Text
     password            String
     profile_photo       String? @db.Text
+    cover_photo       String? @db.Text
     is_verified         Int @default(0)
     is_artise           Boolean @default(false)
     socialProfiles      UserSocialProfiles[]      
