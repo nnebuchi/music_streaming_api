@@ -5,27 +5,64 @@ const formidable = require('formidable');
 const disk = require('../utils/storage');
 const path = require('path');
 const storageHelper = require('../utils/storage');
-const fs = require('fs');
+const file_config = require('../config/filesystem');
+const file_disks = file_config.storage;
+// const fs = require('fs');
+const fs = require('fs-extra');
 const {creatorCast, excludeCast} = require('../utils/auth');
 
-exports.create = async(song_data, user, res) => {
+exports.create = async(song_data, user) => {
 
     try {
         const add_song_data = await prisma.songs.create({
             data: song_data
         });
-        return res.status(200).json({ 
-            status: 'success',
-            message: 'Song Uploaded',
-            data: add_song_data
-        })
+        return add_song_data
+        // return res.status(200).json({ 
+        //     status: 'success',
+        //     message: 'Song Uploaded',
+        //     data: add_song_data
+        // })
     } catch (error) {
-        return res.status(400).json({ 
-            status: 'fail',
-            message: 'upload failed',
-            error: error
-        })
+      console.log(error);
+      
+      return false;
+        // return res.status(400).json({ 
+        //     status: 'fail',
+        //     message: 'upload failed',
+        //     error: error
+        // })
     }
+}
+
+exports.addTrack = async (req, res, disk = 'local') => {
+  const { originalname, chunkIndex, totalChunks, uploadId } = req.body;
+    const tempPath = req.file.path;
+    let uploadDir = file_disks[disk]['root'];
+    let tempUploadDir =  path.join(uploadDir, "tracks");
+    // path.join(__dirname, 'uploads', uploadId);
+    const finalPath = path.join(tempUploadDir, originalname);
+
+    // Ensure the upload directory exists
+    await fs.ensureDir(tempUploadDir);
+
+    // Append the chunk to the final file
+    fs.appendFileSync(finalPath, fs.readFileSync(tempPath));
+
+    // Remove the temporary chunk file
+    await fs.remove(tempPath);
+
+    // Check if this is the last chunk
+    if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
+        // Optionally, you can do something with the final file here
+        console.log(`Upload completed: ${finalPath}`);
+    }
+
+    // return 'chunk uploaded'
+    return res.status(200).json({
+      status:'success',
+      message:"chunk uploaded"
+    })
 }
 
 exports.list = async(parsedUrl, user, res) => {
@@ -81,84 +118,6 @@ exports.list = async(parsedUrl, user, res) => {
   
   
 }
-
-exports.upload =  async (req, res) => {
-    try {
-       
-        const form = new formidable.IncomingForm();
-        
-       form.parse(req, async (err, fields, files) => {
-            
-          if (err) {
-            console.error(err);
-            return res.status(500).json({ 
-                error: 'Error parsing form data' 
-            });
-          }
-          const chunkIndex = parseInt(fields.chunkIndex);
-          const totalChunks = parseInt(fields.totalChunks);
-    
-          await storageHelper.saveChunk(files.file, chunkIndex, totalChunks);
-    
-          res.json({ message: 'Chunk uploaded successfully' });
-        });
-
-
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Error uploading chunk' });
-      }
-    // try {
-    //   const filePath = await storageHelper.put(req.file, 'local'); // or 's3'
-
-    //   res.json({ filePath });
-    // } catch (error) {
-    //   console.error(error);
-    //   res.status(500).json({ error: 'Upload failed' });
-    // }
-  }
-
-
-  exports.send = async (req, res) => {
-    const { file, body: { totalChunks, currentChunk } } = req;
-    console.log(file);
-    const diskConfig = storageHelper.getDisk('local');
-    const filePath = path.join(diskConfig.root, `temp/${file.originalname}_${chunkIndex}`)
-    const chunkFilename = `${file.originalname}.${currentChunk}`;
-    const chunkPath = `/public/uploads/${chunkFilename}`;
-    fs.rename(file.path, chunkPath, (err) => {
-      if (err) {
-        console.error('Error moving chunk file:', err);
-        res.status(500).send('Error uploading chunk');
-      } else {
-        if (+currentChunk === +totalChunks) {
-          // All chunks have been uploaded, assemble them into a single file
-          assembleChunks(file.originalname, totalChunks)
-            .then(() => res.send('File uploaded successfully'))
-            .catch((err) => {
-              console.error('Error assembling chunks:', err);
-              res.status(500).send('Error assembling chunks');
-            });
-        } else {
-          res.send('Chunk uploaded successfully');
-        }
-      }
-    });
-  }
-  
-
-  async function assembleChunks(filename, totalChunks) {
-    const writer = fs.createWriteStream(`./uploads/${filename}`);
-    for (let i = 1; i <= totalChunks; i++) {
-      const chunkPath = `${CHUNKS_DIR}/${filename}.${i}`;
-      await pipeline(pump(fs.createReadStream(chunkPath)), pump(writer));
-      fs.unlink(chunkPath, (err) => {
-        if (err) {
-          console.error('Error deleting chunk file:', err);
-        }
-      });
-    }
-  }
 
 
 exports.creators = async (user, res) => {

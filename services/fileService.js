@@ -47,9 +47,13 @@ const saveFile = (directory, disk='local') => {
 }
 
 
+
+
 exports.uploadProfilePhoto = multer({ storage: saveFile('profile-photos')});
 
 exports.uploadCoverPhoto = multer({ storage: saveFile('cover-photos')});
+
+exports.uploadTrackFile = multer({ dest: 'temp/' });
 
 
 

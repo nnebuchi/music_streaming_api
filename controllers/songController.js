@@ -17,3 +17,10 @@ exports.upload = async(req, res) => {
 exports.creators = async(req, res) => {
     return songService.creators(req.user, res);
 }
+
+exports.uploadFileChunk = async (req, res) => {
+    // if(songService.create()){
+
+    // }
+    return songService.addTrack(req, res);
+}

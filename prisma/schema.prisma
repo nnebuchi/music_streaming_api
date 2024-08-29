@@ -79,13 +79,28 @@ model Albums{
 
 model Tracks{
     id         Int @id @default(autoincrement())
-    title       String
+    title       String?
     user_id     Int
     slug        String
-    duration    Int
-    cover       String
+    duration    Int?
+    cover       String?
     file        String
     album_id    Int @default(0)
+    genres      Genre[] @relation(mappedBy: "track")
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
+}
+
+model Genre {
+  id      Int     @id @default(autoincrement())
+  name    String
+  tracks  Track[] @relation(mappedBy: "genre")
+}
+
+
+model TrackGenre {
+  track     Track  @relation(fields: [track_id], references: [id])
+  genre     Genre  @relation(fields: [genre_id], references: [id])
+  track_id  String
+  genre_id  String
 }

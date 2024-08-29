@@ -10,7 +10,8 @@ const app = express();
 const port = process.env.PORT;
 
 // CORS middleware
-app.use(cors({ origin: 'http://localhost:3001' }));// Replace with frontend origin
+app.use(cors({ origin: 'http://127.0.0.1:5502' }));
+// Replace with frontend origin
 
 app.use(bodyParser.json());
 

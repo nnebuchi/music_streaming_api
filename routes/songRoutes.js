@@ -5,13 +5,13 @@ const songController = require('../controllers/songController');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const {uploadTrackFile} = require('../services/fileService');
 // const {storage} = require('../services/fileService');
 
 
 // songRouter.post('/add', verifyAuthToken, songController.add);
-const upload = multer();
 
-songRouter.post('/upload', upload.single('track'), songController.upload);
+songRouter.post('/upload', verifyAuthToken, uploadTrackFile.single('file_chunk'), songController.uploadFileChunk);
 songRouter.get('/list', verifyAuthToken, songController.list);
 songRouter.get('/creators', verifyAuthToken, songController.creators);
 
