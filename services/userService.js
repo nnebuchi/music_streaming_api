@@ -1,9 +1,11 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma  = new PrismaClient();
 const argon2 = require('argon2');
-const {userCast, excludeCast, socialsCast} = require('../utils/auth');
+const {userCast, socialsCast} = require('../utils/auth');
+const { excludeCast} = require('../utils/generic');
 const multer = require('multer');
 const fs = require('fs');
+const {processPath} = require('../utils/file');
 
 exports.changePassword = async (old_password, new_password, user, res) => {
    
@@ -243,23 +245,13 @@ exports.deleteAccount = async (user, res) => {
 }
 
 exports.updateProfilePhoto = async (user, file, res) => {
-    let file_path_on_db;
-
-    if(file?.path.split("\\").length > 1 && file?.path.split("\\")[0] === "public"){
-        
-        const  file_path_to_array = file.path.split("\\");
-        file_path_to_array.shift();
-        
-        file_path_on_db = file_path_to_array.join("/");
-    }else{
-        file_path_on_db = file.path.split("\\").replaceAll("\\","/");
-    } 
+    const file_path_on_db = await processPath(file);
+    console.log(file_path_on_db);
+    
     await prisma.users.findFirst({
        where:{ id:user.id}
     })
     .then(user_profile => {
-        console.log(file_path_on_db);
-        
          prisma.users.update({
             where:{
                 id:user.id
@@ -297,55 +289,49 @@ exports.updateProfilePhoto = async (user, file, res) => {
 }
 
 exports.updateCoverPhoto = async (user, file, res) => {
-    let file_path_on_db;
-
-    if(file?.path.split("\\").length > 1 && file?.path.split("\\")[0] === "public"){
-        
-        const  file_path_to_array = file.path.split("\\");
-        file_path_to_array.shift();
-        
-        file_path_on_db = file_path_to_array.join("/");
-    }else{
-        file_path_on_db = file.path.split("\\").replaceAll("\\","/");
-    } 
-    await prisma.users.findFirst({
-       where:{ id:user.id}
-    })
-    .then(user_profile => {
-        console.log(file_path_on_db);
-        
-         prisma.users.update({
-            where:{
-                id:user.id
-            },
-            data:{
-                cover_photo:file_path_on_db
-            }
-        })
-        .then(update_user_photo => {
-            
-            // delete old photo from folder
-            if(user_profile.profile_photo){
-                // check of file path exists and delete it
-                if (fs.existsSync(`./public/${user_profile.cover_photo}`)) {
-                    fs.unlinkSync(`./public/${user_profile.cover_photo}`);
-                }
-                
-            }
-            return res.status(200).json({
-                status:"success",
-                message:"Profile Photo Updated",
-                file:file_path_on_db
+    try {
+        if (!file || !file.path) {
+            return res.status(400).json({
+                status: "fail",
+                message: "No file provided"
             });
-        })
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(200).json({
-            status:"fail",
-            message:"Profile Photo update failed",
-            error: err
-        });
-    })
+        }
 
-}
+        let filePathOnDb = file.path.replace(/^public[\\\/]/, "").replace(/\\/g, "/");
+
+        // Fetch the user profile
+        const userProfile = await prisma.users.findFirst({ where: { id: user.id } });
+
+        if (!userProfile) {
+            return res.status(404).json({
+                status: "fail",
+                message: "User not found"
+            });
+        }
+
+        // Update the user's cover photo
+        await prisma.users.update({
+            where: { id: user.id },
+            data: { cover_photo: filePathOnDb }
+        });
+
+        // Delete the old cover photo if it exists
+        if (userProfile.cover_photo && fs.existsSync(`./public/${userProfile.cover_photo}`)) {
+            fs.unlinkSync(`./public/${userProfile.cover_photo}`);
+        }
+
+        return res.status(200).json({
+            status: "success",
+            message: "Cover Photo Updated",
+            file: filePathOnDb
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            status: "fail",
+            message: "Profile Photo update failed",
+            error
+        });
+    }
+};

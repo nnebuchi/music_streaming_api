@@ -19,7 +19,10 @@ model Users {
     cover_photo       String? @db.Text
     is_verified         Int @default(0)
     is_artise           Boolean @default(false)
-    socialProfiles      UserSocialProfiles[]      
+    socialProfiles      UserSocialProfiles[]
+    // Self-referencing many-to-many relation
+    artistes       ArtisteToFollower[] @relation("FollowerArtistes")
+    followers      ArtisteToFollower[] @relation("ArtisteFollowers")
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
 }
@@ -62,11 +65,6 @@ model UserSocialProfiles {
     @@unique([user_id, social_id]) // Ensure that each user can have only one profile per social platform
 }
 
-model Genres {
-    id      Int     @id @default(autoincrement())
-    title   String
-    slug    String
-}
 
 model Albums{
     id          Int     @id @default(autoincrement())
@@ -78,29 +76,47 @@ model Albums{
 }
 
 model Tracks{
-    id         Int @id @default(autoincrement())
-    title       String?
-    user_id     Int
-    slug        String
-    duration    Int?
-    cover       String?
-    file        String
-    album_id    Int @default(0)
-    genres      Genre[] @relation(mappedBy: "track")
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt @default(now())
+    id              Int @id @default(autoincrement())
+    title           String?
+    user_id         Int
+    slug            String @unique
+    duration        String?
+    cover           String?
+    file            String?
+    album_id        Int @default(0)
+    release_date    String?
+    featured        String?
+    about           String? @db.Text
+    genres          TrackToGenres[]
+    created_at      DateTime @default(now())
+    updated_at      DateTime @updatedAt @default(now())
 }
 
-model Genre {
+model Genres {
   id      Int     @id @default(autoincrement())
-  name    String
-  tracks  Track[] @relation(mappedBy: "genre")
+  title   String
+  slug    String
+  tracks  TrackToGenres[]
 }
 
+model TrackToGenres {
+  id        Int     @id @default(autoincrement())
+  track     Tracks  @relation(fields: [track_id], references: [id])
+  genre     Genres  @relation(fields: [genre_id], references: [id])
+  track_id  Int
+  genre_id  Int
+}
 
-model TrackGenre {
-  track     Track  @relation(fields: [track_id], references: [id])
-  genre     Genre  @relation(fields: [genre_id], references: [id])
-  track_id  String
-  genre_id  String
+model ArtisteToFollower {
+    id          Int    @id @default(autoincrement())
+    
+    // Reference to the artiste (a user)
+    artiste     Users  @relation("ArtisteFollowers", fields: [artiste_id], references: [id])
+    artiste_id  Int
+    
+    // Reference to the follower (a user)
+    follower    Users  @relation("FollowerArtistes", fields: [follower_id], references: [id])
+    follower_id Int
+
+    created_at  DateTime @default(now())
 }

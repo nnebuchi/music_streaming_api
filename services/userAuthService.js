@@ -11,25 +11,30 @@ const { log } = require('console');
 
 exports.createUser = async(user_data, res) => {
     try {
-        const HashedPassword = await argon2.hash(user_data?.password)
+        const raw_password = user_data.password;
+        const HashedPassword = await argon2.hash(raw_password)
         user_data.password = HashedPassword;
         const user = await prisma.users.create({
             data:user_data
         });
 
         if(user){
+            const auth = await authenticate(user_data.email, raw_password);
             const handleOtp = await sendOtp({ name:user.first_name, recipient:user.email, purpose:"account_verification" }, res);
             if(handleOtp?.status){
-                console.log(handleOtp);
+                
                 return res.status(201).json({
                     status:"success",
-                    message:"Registration successful, check your email for a verification code",
+                    message:`Registration successful, use ${handleOtp.otp} as your OTP to verify your account while we fix our mail server`,
+                    // message:"Registration successful, check your email for a verification code",
+                    token: auth?.token
                 });
             }else{
                 return res.status(201).json({
                     status:"success",
                     message:"registration successful, but OTP was not sent. Kindly resend OTP",
-                    error: handleOtp.error
+                    error: handleOtp.error,
+                    token: auth?.token
                 });
             }
         }
@@ -50,6 +55,7 @@ exports.resendOtp = async (email, purpose, res) => {
         });
         
         if(user){
+            
             return sendOtp({ name:user.first_name, recipient:user.email, purpose:purpose }, res)
         }
         else{
@@ -76,7 +82,10 @@ const sendOtp = async (mail_data, res) => {
         
         mail_data.code = code;
         if(storeOtp){
-               
+            return {
+                status: true,
+                otp:code
+            };  
                 
             const mail_res = await send_mail(mail_data, mail_data.purpose.replaceAll('_', " ").toUpperCase(), "Gracious Hearts Music", res)
             // return
@@ -182,46 +191,76 @@ exports.verifyOtp = async ({otp, email, purpose, new_password}, res) => {
     }
 }
 
-exports.loginUser = async(req_data, res) => {
+const authenticate = async (email, password) => {
     try {
         const user = await prisma.users.findUnique({
-            where:{email:req_data.email}
+            where:{email:email}
         });
-
         if(user){
-            const passwordCheck = await argon2.verify(user.password, req_data.password);
+            const passwordCheck = await argon2.verify(user.password, password);
+
             if(passwordCheck){
-                console.log(passwordCheck);
+               
                 const payload = {
                     id: user.id,
                     email: user.email
                 }
-        
+
                 const options = {
                     expiresIn: 365 * 24 * 60 * 60,
-                    // httpOnly: true
+                   
                 }
-                return res.status(200).json({
-                    status:"success",
-                    message:"login successful",
+                jwt.sign(payload, secretKey, options)
+                return{
+                    status:true,
                     is_verified:user.is_verified == '0' ? false : true,
                     token: jwt.sign(payload, secretKey, options)
-                })
+                }
             }else{
-                return res.status(400).json({
-                    status:"fail",
-                    message:"login failed",
-                    error:"Invalid Credentials"
-                });
+                return{
+                    status:false,
+                    error:"invalid credentials"
+                }
             }
-           
+        }else{
+            return{
+                status:false,
+                error:"invalid credentials"
+            }
+        }
+    } catch (error) {
+        return{
+            status:false,
+            error:error
+        }
+    }
+}
+exports.loginUser = async(req_data, res) => {
+    try {
+        const auth = await authenticate(req_data.email, req_data.password);
+    
+        if(auth.status){
+            return res.status(200).json({
+                status:"success",
+                message:"login successful",
+                is_verified:auth.is_verified,
+                token: auth.token
+            })
         }else{
             return res.status(400).json({
                 status:"fail",
                 message:"login failed",
-                error:"Invalid Credentials"
+                error:auth.error
             });
         }
+           
+        // }else{
+        //     return res.status(400).json({
+        //         status:"fail",
+        //         message:"login failed",
+        //         error:"Invalid Credentials"
+        //     });
+        // }
        
     } catch (error) {
         return res.status(400).json({ 

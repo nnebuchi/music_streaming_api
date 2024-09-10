@@ -17,23 +17,6 @@ exports.verifyAuthToken = (req, res, next) => {
     });
 };
 
-exports.userCast = ["id", "password", "is_verified", "created_at", "updated_at"];
+exports.userCast = ["id", "password", "created_at", "updated_at"];
 
-exports.creatorCast = ["password", "is_verified", "created_at", "updated_at"];
-
-exports.excludeCast = async (data, cast_arr) =>{
-  try {
-    for(let prop in data){  
-      if(cast_arr.includes(prop)){
-        delete data[prop]
-      }
-    }
-    
-    return data;
-  } catch (error) {
-    console.log(error);
-    
-    return error
-  }
- 
-}
+exports.creatorCast = ["password", "created_at", "updated_at"];

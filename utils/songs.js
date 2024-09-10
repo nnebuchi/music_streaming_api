@@ -1,0 +1,1 @@
+exports.songCast = ["slug", "user_id", "created_at"];

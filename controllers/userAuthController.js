@@ -161,7 +161,7 @@ exports.sendOtp = async(req, res) => {
       if(handleOtp?.status){
           return res.status(200).json({
               status:"success",
-              message:"otp resent successfully, check your email for a verification code",
+              message:`otp resent successfully,  use ${handleOtp.otp} as your OTP while we fix our mail server`,
           });
       }else{
           return res.status(400).json({

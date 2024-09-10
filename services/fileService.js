@@ -2,6 +2,7 @@ const multer = require('multer');
 const {renameUploadedFile} = require('../utils/generic');
 const file_config = require('../config/filesystem');
 const file_disks = file_config.storage;
+const fs = require('fs-extra');
 
 exports.storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -34,12 +35,13 @@ exports.storage = multer.diskStorage({
 const saveFile = (directory, disk='local') => {
   
   return  multer.diskStorage({
-    destination: (req, file, cb) => {
+    destination: async (req, file, cb) => {
       const file_path = file_disks[disk]['root'];
+       await fs.ensureDir(`${file_path}/${directory}`);
       cb(null, `${file_path}/${directory}`); // Specify the directory where files will be stored
     },
     filename: async (req, file, cb) => {
-      console.log(file);
+      // console.log(file);
       
       cb(null, await renameUploadedFile(file.originalname)); 
     }
@@ -49,11 +51,13 @@ const saveFile = (directory, disk='local') => {
 
 
 
-exports.uploadProfilePhoto = multer({ storage: saveFile('profile-photos')});
+exports.uploadProfilePhoto = multer({ storage: saveFile('profile_photos')});
 
-exports.uploadCoverPhoto = multer({ storage: saveFile('cover-photos')});
+exports.uploadCoverPhoto = multer({ storage: saveFile('cover_photos')});
 
-exports.uploadTrackFile = multer({ dest: 'temp/' });
+exports.uploadTrackCoverPhoto = multer({ storage: saveFile('track_covers')});
+
+exports.uploadTrackFile = multer({ dest: 'public/uploads/temp/' });
 
 
 
