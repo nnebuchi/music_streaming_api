@@ -15,5 +15,7 @@ userRouter.post('/change-password', verifyAuthToken, userController.changePasswo
 userRouter.get('/delete-account', verifyAuthToken, userController.deleteAccount);
 userRouter.post('/update-profile-photo', verifyAuthToken, uploadProfilePhoto.single('photo'), userController.updateProfilePhoto);
 userRouter.post('/update-cover-photo', verifyAuthToken, uploadCoverPhoto.single('photo'), userController.updateCoverPhoto);
-
+userRouter.get('/followers', verifyAuthToken, userController.getFollowers);
+userRouter.get('/followings', verifyAuthToken, userController.getFollowings);
+userRouter.get('/liked-tracks', verifyAuthToken, userController.getLikedTracks);
 module.exports = userRouter;

@@ -207,26 +207,99 @@ exports.addTrackFile = async (req, res, disk = 'local') => {
     })
 }
 
-exports.list = async(parsedUrl, user, res) => {
+// exports.list = async(parsedUrl, user, res) => {
 
+//   try {
+//     const queryString = parsedUrl.query;
+//     console.log(queryString);
+    
+//     const query = {}
+//     where = {}
+//     if( queryString.creator_id){
+//       where.user_id = parseInt(queryString.creator_id);
+//     }
+
+//     if(queryString.genre){
+//       where.genres =  { some: { genre: { id: parseInt(queryString.genre) } } } 
+//     }
+
+//     query.where = where;
+    
+//     if(queryString.latest && queryString.latest == "true"){
+//       query.orderBy = {id:"desc"}
+//     }
+
+//     const page = queryString.page ? parseInt(queryString.page) : 1;
+//     const page_size = parseInt(process.env.TRACK_PER_PAGE);
+
+//     query.skip = (page - 1) * page_size;
+//     query.take = page_size;
+    
+//     const tracks = await prisma.tracks.findMany(query);
+//     if(tracks){
+//       const totalTracksCount = await prisma.tracks.count();
+//       const totalPages = Math.ceil(totalTracksCount / page_size);
+//       const paginatedResult = {
+//         tracks: tracks,
+//         meta: {
+//           total: totalTracksCount,
+//           page,
+//           last_page: totalPages,
+//           page_size,
+//           nextPage:page === totalPages ? null : page + 1,
+//         },
+//       };
+//       return res.status(200).json({
+//         status:'success',
+//         data:paginatedResult
+//       })
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(400).json({
+//       status:'fail',
+//       error:error,
+//       message:"Could not fetch tracks."
+//     })
+//   }
+  
+  
+// }
+
+exports.list = async (parsedUrl, user, res) => {
   try {
     const queryString = parsedUrl.query;
     console.log(queryString);
-    
-    const query = {}
-    where = {}
-    if( queryString.creator_id){
+
+    const query = {};
+    let where = {};
+
+    if (queryString.creator_id) {
       where.user_id = parseInt(queryString.creator_id);
     }
 
-    if(queryString.genre){
-      where.genres =  { some: { genre: { id: parseInt(queryString.genre) } } } 
+    if (queryString.genre) {
+      where.genres = { some: { genre: { id: parseInt(queryString.genre) } } };
+    }
+
+    // Check for the 'like' query string
+    if (queryString.like && queryString.like === 'true') {
+      // If authenticated user is present, filter by liked tracks
+      if (user) {
+        where.likes = { some: { user: { id: user.id } } };
+      } else {
+        // Handle case where user is not authenticated (return empty list)
+        return res.status(200).json({
+          status: 'success',
+          data: { tracks: [], meta: { total: 0, page: 1, last_page: 1, page_size: 10, nextPage: null } }
+        });
+      }
     }
 
     query.where = where;
-    
-    if(queryString.latest && queryString.latest == "true"){
-      query.orderBy = {id:"desc"}
+
+    if (queryString.latest && queryString.latest === 'true') {
+      query.orderBy = { id: 'desc' };
     }
 
     const page = queryString.page ? parseInt(queryString.page) : 1;
@@ -234,9 +307,9 @@ exports.list = async(parsedUrl, user, res) => {
 
     query.skip = (page - 1) * page_size;
     query.take = page_size;
-    
+
     const tracks = await prisma.tracks.findMany(query);
-    if(tracks){
+    if (tracks) {
       const totalTracksCount = await prisma.tracks.count();
       const totalPages = Math.ceil(totalTracksCount / page_size);
       const paginatedResult = {
@@ -246,74 +319,77 @@ exports.list = async(parsedUrl, user, res) => {
           page,
           last_page: totalPages,
           page_size,
-          nextPage:page === totalPages ? null : page + 1,
+          nextPage: page === totalPages ? null : page + 1,
         },
       };
       return res.status(200).json({
-        status:'success',
-        data:paginatedResult
-      })
+        status: 'success',
+        data: paginatedResult,
+      });
     }
   } catch (error) {
     console.log(error);
     return res.status(400).json({
-      status:'fail',
-      error:error,
-      message:"Could not fetch tracks."
-    })
+      status: 'fail',
+      error: error,
+      message: 'Could not fetch tracks.',
+    });
   }
-  
-  
-}
+};
 
 
 exports.creators = async (user, res) => {
-  const all_creators = await prisma.users.findMany({
-    where: {
-      is_artise: true,
-      id: {
-        not: user.id
-      } 
-    },
-    include: {  
-      socialProfiles: {
-        select: { 
-          id: true, 
-          url:true, 
-          social:{
-            select: { 
-              title: true,
-              logo:true,
-              slug:true
-            }
-          }
+  try {
+    const allCreators = await prisma.users.findMany({
+      where: {
+        is_artise: true,
+        NOT: { id: user.id }, // More concise negation
+      },
+      include: {
+        socialProfiles: {
+          select: {
+            id: true,
+            url: true,
+            social: {
+              select: {
+                title: true,
+                logo: true,
+                slug: true,
+              },
+            },
+          },
         },
-        
-      }, 
-    }
-  })
-  if(all_creators){
-    
-    const formattedCreatorList = []
-    all_creators.forEach(async (creator) => {
-    await excludeCast(creator, creatorCast)
-    .then(formattedCreator => {
-      console.log(formattedCreator);
-      
-      formattedCreatorList.push(formattedCreator)
-      return res.status(200).json({ 
-        status: 'success',
-        data: formattedCreatorList
-      })
-    }
-    )
+      },
     });
 
-    
-  }
+    if (allCreators.length) {
+      const formattedCreators = await Promise.all(
+        allCreators.map(async (creator) => {
+          const formattedCreator = await excludeCast(creator, creatorCast);
+          return formattedCreator;
+        })
+      );
 
-  
-}
+      return res.status(200).json({
+        status: 'success',
+        data: formattedCreators,
+      });
+    } else {
+      // Handle empty creators case (optional)
+      return res.status(200).json({
+        status: 'success',
+        data: [], // Empty array
+        message: 'No creators found', // Informative message
+      });
+    }
+  } catch (error) {
+    console.error(error); // Log the error for debugging
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal server error', // Generic error message for user
+    });
+  }
+};
 
 
 exports.genres = async (res) => {
@@ -322,7 +398,30 @@ exports.genres = async (res) => {
     data:await prisma.genres.findMany({})
   });
 }
+exports.likeTrack = async (req_data, res) => {
+  const {track_id, user_id} = req_data
+  // const {user_id} = req.user.id;
+  try {
+    const existingLike = await prisma.trackLike.findMany({
+      where: { track_id, user_id },
+    });
 
+    if (existingLike.length > 0) {
+       await prisma.trackLike.deleteMany({
+        where: { track_id, user_id },
+      });
+      return res.status(400).json({status:"success", message: 'unliked' });
+    }else{
+      await prisma.trackLike.create({
+        data: { track_id, user_id },
+      });
+      return res.status(400).json({status:"success", message: 'liked' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error liking track' });
+  }
+}
 /*
 
 if(all_creators){

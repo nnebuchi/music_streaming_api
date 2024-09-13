@@ -6,7 +6,7 @@ const {send_mail} = require('./mail/accountVerification');
 const jwt = require('jsonwebtoken');
 const secretKey= process.env.AUTH_SEC_KEY;
 const {generateOTP} = require('../utils/generic');
-const { log } = require('console');
+const {slugify} = require('../utils/generic');
 
 
 exports.createUser = async(user_data, res) => {
@@ -14,6 +14,7 @@ exports.createUser = async(user_data, res) => {
         const raw_password = user_data.password;
         const HashedPassword = await argon2.hash(raw_password)
         user_data.password = HashedPassword;
+        user_data.slug = await slugify(`${user_data.first_name}-${user_data.last_name}`);
         const user = await prisma.users.create({
             data:user_data
         });

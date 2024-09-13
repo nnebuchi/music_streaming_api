@@ -16,13 +16,15 @@ model Users {
     about               String? @db.Text
     password            String
     profile_photo       String? @db.Text
-    cover_photo       String? @db.Text
+    cover_photo         String? @db.Text
     is_verified         Int @default(0)
     is_artise           Boolean @default(false)
+    slug                String?
     socialProfiles      UserSocialProfiles[]
     // Self-referencing many-to-many relation
-    artistes       ArtisteToFollower[] @relation("FollowerArtistes")
-    followers      ArtisteToFollower[] @relation("ArtisteFollowers")
+    artistes            ArtisteToFollower[] @relation("FollowerArtistes")
+    followers           ArtisteToFollower[] @relation("ArtisteFollowers")
+    likedTracks         TrackLike[]
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
 }
@@ -45,11 +47,11 @@ model App_Settings {
 }
 
 model Socials {
-    id          Int @id @default(autoincrement())
-    title       String @unique
-    logo        String @db.Text
-    slug        String @unique
-    userSocialProfiles UserSocialProfiles[]
+    id                  Int @id @default(autoincrement())
+    title               String @unique
+    logo                String @db.Text
+    slug                String @unique
+    userSocialProfiles  UserSocialProfiles[]
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 }
@@ -88,6 +90,7 @@ model Tracks{
     featured        String?
     about           String? @db.Text
     genres          TrackToGenres[]
+    likes           TrackLike[]
     created_at      DateTime @default(now())
     updated_at      DateTime @updatedAt @default(now())
 }
@@ -119,4 +122,14 @@ model ArtisteToFollower {
     follower_id Int
 
     created_at  DateTime @default(now())
+} 
+
+model TrackLike {
+    id          Int    @id @default(autoincrement())
+    track_id    Int
+    user_id     Int
+    track       Tracks @relation(fields: [track_id], references: [id])
+    user        Users  @relation(fields: [user_id], references: [id])
+    likedAt     DateTime @default(now())
+    @@unique([track_id, user_id])
 }

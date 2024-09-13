@@ -77,3 +77,15 @@ exports.updateCoverPhoto = async(req, res) => {
     res.send('No file uploaded.');
   }
 }
+
+exports.getFollowers = async (req, res) => {
+  return userService.getFollowers(req, res);
+}
+
+exports.getFollowings = async (req, res) => {
+  return userService.getFollowings(req, res);
+}
+
+exports.getLikedTracks = async (req, res) => {
+  return userService.getLikedTracks(req, res);
+}

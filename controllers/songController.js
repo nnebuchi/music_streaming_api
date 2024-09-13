@@ -93,3 +93,33 @@ exports.addTrackCoverPhoto = async (req, res) => {
     }
    
 }
+
+exports.likeTrack = async (req, res) => {
+    const {track_id} = req.params
+    const user_id = req.user.id;
+    const validate = await runValidation([
+        {
+            input: { value: track_id, field: "track_id", type: "text" },
+            rules: { required: true},
+        }
+    ])
+    if(validate){
+        if(validate?.status === false) {
+        return res.status(409).json({
+            status:"fail",
+            errors:validate.errors,
+            message:"Request Failed",
+        });
+        }else{
+            
+            return await songService.likeTrack(
+                {
+                    track_id:parseInt(track_id),
+                    user_id:parseInt(user_id)
+                }, 
+                res
+            );
+        }
+    }
+    
+}

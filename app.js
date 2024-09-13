@@ -10,7 +10,7 @@ const app = express();
 const port = process.env.PORT;
 
 // CORS middleware
-app.use(cors({ origin: ['http://127.0.0.1:5502', 'http://localhost:5173'] }));
+app.use(cors({ origin: ['http://127.0.0.1:5502', 'http://localhost:5173', 'https://ghm.techbridge.city'] }));
 // Replace with frontend origin
 
 app.use(bodyParser.json());

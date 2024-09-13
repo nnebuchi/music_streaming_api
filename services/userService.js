@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma  = new PrismaClient();
 const argon2 = require('argon2');
-const {userCast, socialsCast} = require('../utils/auth');
+const {userCast, creatorCast} = require('../utils/auth');
 const { excludeCast} = require('../utils/generic');
 const multer = require('multer');
 const fs = require('fs');
@@ -335,3 +335,107 @@ exports.updateCoverPhoto = async (user, file, res) => {
         });
     }
 };
+
+exports.getFollowers = async (req, res) => {
+    
+    const {id} = req.user   
+    try {
+        const followers = await prisma.artisteToFollower.findMany({
+            where: {
+                artiste_id: id, // ID of the artiste
+            },
+            include: {
+                follower: true, // Get only the listener details
+            },
+        });
+        if(followers){
+            const formattedFollowers = await Promise.all(
+                followers.map(async (follower) => {
+                  const formattedFollower = await excludeCast(follower.follower, creatorCast);
+                  return formattedFollower;
+                })
+              );
+            return res.status(200).json({
+                status: 'success',
+                data: await formattedFollowers,
+            }); 
+        }
+    
+    } catch (error) {
+        console.log(error);
+        
+        return res.status(400).json({
+            status: 'fail',
+            error: error,
+        });
+    }  
+}
+
+exports.getFollowings = async (req, res) => {
+    
+    const {id} = req.user   
+    try {
+        const followings = await prisma.artisteToFollower.findMany({
+            where: {
+                follower_id: id, // ID of the artiste
+            },
+            include: {
+                artiste: true, // Get only the listener details
+            },
+        });
+        if(followings){
+            const formattedFollowings = await Promise.all(
+                followings.map(async (following) => {
+                  const formattedFollowing = await excludeCast(following.artiste, creatorCast);
+                  return formattedFollowing;
+                })
+              );
+            return res.status(200).json({
+                status: 'success',
+                data: await formattedFollowings,
+            }); 
+        }
+    
+    } catch (error) {
+        console.log(error);
+        
+        return res.status(400).json({
+            status: 'fail',
+            error: error,
+        });
+    }  
+}
+exports.getLikedTracks = async (req, res) => {
+    
+    const {id} = req.user   
+    try {
+        const likedTracks = await prisma.trackLike.findMany({
+            where: {
+                user_id: id, // ID of the artiste
+            },
+            include: {
+                track: true, // Get only the listener details
+            },
+        });
+        if(likedTracks){
+            // const formattedFollowings = await Promise.all(
+            //     likedTracks.map(async (likedTrack) => {
+            //       const formattedFollowing = await excludeCast(following.artiste, creatorCast);
+            //       return formattedFollowing;
+            //     })
+            //   );
+            return res.status(200).json({
+                status: 'success',
+                data: await likedTracks,
+            }); 
+        }
+    
+    } catch (error) {
+        console.log(error);
+        
+        return res.status(400).json({
+            status: 'fail',
+            error: error,
+        });
+    }  
+}
