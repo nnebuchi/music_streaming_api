@@ -57,8 +57,13 @@ exports.profile = async (user, res) => {
             where:{email:user.email},
             include: {
                 socialProfiles: {
-                    select: { id: true, url:true, social_id:true}
+                    select: { id: true, url:true, social_id:true, social:{
+                        select: {logo:true, slug:true, title:true}
+                    }}
                 },
+                followers:{
+                    select: {id:true, follower:true}
+                }
               },
         })
         return res.status(200).json({
@@ -116,69 +121,161 @@ exports.updateProfile = async (req, res) => {
     }
 }
 
-exports.updateSocials = async (req_user, request_data, res) => {
+// exports.updateSocials = async (req_user, request_data, res) => {
    
-    try {
-        const user = await prisma.users.findUnique({
-            where: {email: req_user.email}
-        });
-        if(user){
-            const socials = await prisma.socials.findMany();
-            // console.log(request_data);
-            socials.forEach( async social=>{
-                // console.log(social.slug);
-                if(social.slug in request_data){
-                    let existing_social = await prisma.userSocialProfiles.findFirst({
-                        where:{
-                            social_id:social.id,
-                            user_id:user.id
-                        }
-                    });
+//     try {
+//         const user = await prisma.users.findUnique({
+//             where: {email: req_user.email}
+//         });
+//         if(user){
+//             const socials = await prisma.socials.findMany();
+//             // console.log(request_data);
+//             socials.forEach( async social=>{
+//                 // console.log(social.slug);
+//                 if(social.slug in request_data){
+//                     let existing_social = await prisma.userSocialProfiles.findFirst({
+//                         where:{
+//                             social_id:social.id,
+//                             user_id:user.id
+//                         }
+//                     });
                    
                     
-                    if(existing_social){
-                        //  console.log(existing_social);
-                        await prisma.userSocialProfiles.update({
-                            where:{
-                                id:existing_social.id
-                            },
-                            data:{
-                                url:request_data[social.slug]
-                            }
-                        })
-                    }else{
-                        await prisma.userSocialProfiles.create({
-                            data:{
-                                user_id:user.id,
-                                social_id:social.id,
-                                url:request_data[social.slug]
-                            }
-                        })
-                    } 
-                }
+//                     if(existing_social){
+//                         //  console.log(existing_social);
+//                         await prisma.userSocialProfiles.update({
+//                             where:{
+//                                 id:existing_social.id
+//                             },
+//                             data:{
+//                                 url:request_data[social.slug]
+//                             }
+//                         })
+//                     }else{
+//                         await prisma.userSocialProfiles.create({
+//                             data:{
+//                                 user_id:user.id,
+//                                 social_id:social.id,
+//                                 url:request_data[social.slug]
+//                             }
+//                         })
+//                     } 
+//                 }
                 
-            })
+//             })
+
+//             await prisma.userSocialProfiles.deleteMany({
+//                 where: {
+//                   user_id: req_user.id,
+//                   url: '' 
+//                 }
+//               });
+              
             
 
-            return res.status(200).json({
-                status: "success",
-                message: "Socials Updated"
-            })
-        }else{
+//             return res.status(200).json({
+//                 status: "success",
+//                 message: "Socials Updated"
+//             })
+//         }else{
+//             return res.status(404).json({
+//                 status: "fail",
+//                 error:"User not found",
+//                 message: "User not found"
+//             })
+//         }
+//     } catch (error) {
+//         console.log(error);
+        
+//         return res.status(400).json({
+//             status: "fail",
+//             error:error,
+//             message: "Request Failed"
+//         })
+//     }
+// }
+
+exports.updateSocials = async (req_user, request_data, res) => {
+    try {
+        const user = await prisma.users.findUnique({
+            where: { email: req_user.email }
+        });
+
+        if (!user) {
             return res.status(404).json({
                 status: "fail",
-                error:"User not found",
                 message: "User not found"
-            })
+            });
         }
+
+        const socials = await prisma.socials.findMany();
+
+        // Collect operations to execute them in a batch.
+        const operations = [];
+
+        for (const social of socials) {
+            if (social.slug in request_data) {
+                const socialUrl = request_data[social.slug];
+
+                const existingSocialProfile = await prisma.userSocialProfiles.findFirst({
+                    where: {
+                        social_id: social.id,
+                        user_id: user.id
+                    }
+                });
+
+                if (existingSocialProfile) {
+                    operations.push(
+                        prisma.userSocialProfiles.update({
+                            where: { id: existingSocialProfile.id },
+                            data: { url: socialUrl }
+                        })
+                    );
+                } else {
+                    operations.push(
+                        prisma.userSocialProfiles.create({
+                            data: {
+                                user_id: user.id,
+                                social_id: social.id,
+                                url: socialUrl
+                            }
+                        })
+                    );
+                }
+            }
+        }
+
+        // Handle removal of empty URL profiles in the same transaction.
+        operations.push(
+            prisma.userSocialProfiles.deleteMany({
+                where: {
+                    user_id: user.id,
+                    url: ''
+                }
+            })
+        );
+
+        // Execute all operations in a transaction
+        await prisma.$transaction(operations);
+
+        return res.status(200).json({
+            status: "success",
+            message: "Socials Updated"
+        });
+
     } catch (error) {
-        return res.status(400).json({
+        console.error("Error updating socials:", error);
+
+        return res.status(500).json({
             status: "fail",
-            error:error,
-            message: "Request Failed"
-        })
+            message: "Internal Server Error",
+            error: error.message
+        });
     }
-}
+};
+
+
+
 
 exports.socials = async (user, res) => {
     try {

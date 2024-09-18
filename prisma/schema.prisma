@@ -25,6 +25,7 @@ model Users {
     artistes            ArtisteToFollower[] @relation("FollowerArtistes")
     followers           ArtisteToFollower[] @relation("ArtisteFollowers")
     likedTracks         TrackLike[]
+    tracks              Tracks[]
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
 }
@@ -81,6 +82,7 @@ model Tracks{
     id              Int @id @default(autoincrement())
     title           String?
     user_id         Int
+    artiste         Users @relation(fields: [user_id], references: [id])  // Define relation to Users model
     slug            String @unique
     duration        String?
     cover           String?
@@ -130,6 +132,11 @@ model TrackLike {
     user_id     Int
     track       Tracks @relation(fields: [track_id], references: [id])
     user        Users  @relation(fields: [user_id], references: [id])
-    likedAt     DateTime @default(now())
     @@unique([track_id, user_id])
+}
+
+model BlackListToken {
+    id Int @id @default(autoincrement())
+    token   String @db.Text
+    exp     Int
 }

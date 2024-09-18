@@ -157,76 +157,92 @@ exports.update = async (track_id, song_data) => {
   }
 };
 
-exports.addTrackFile = async (req, res, disk = 'local') => {
-  const { originalname, chunkIndex, totalChunks, track_id } = req.body;
-    const tempPath = req.file.path;
-    let uploadDir = file_disks[disk]['root'];
-    let tempUploadDir =  path.join(uploadDir, "tracks");
-    // path.join(__dirname, 'uploads', uploadId);
-    const finalPath = path.join(tempUploadDir, originalname);
+// exports.addTrackFile = async (req, res, disk = 'local') => {
+//   const { originalname, chunkIndex, totalChunks, track_id } = req.body;
+//     const tempPath = req.file.path;
+//     let uploadDir = file_disks[disk]['root'];
+//     let tempUploadDir =  path.join(uploadDir, "tracks");
+//     // path.join(__dirname, 'uploads', uploadId);
+//     const finalPath = path.join(tempUploadDir, originalname);
 
-    // Ensure the upload directory exists
-    await fs.ensureDir(tempUploadDir);
+//     // Ensure the upload directory exists
+//     await fs.ensureDir(tempUploadDir);
 
-    // Append the chunk to the final file
-    fs.appendFileSync(finalPath, fs.readFileSync(tempPath));
+//     // Append the chunk to the final file
+//     fs.appendFileSync(finalPath, fs.readFileSync(tempPath));
 
-    // Remove the temporary chunk file
-    await fs.remove(tempPath);
+//     // Remove the temporary chunk file
+//     await fs.remove(tempPath);
 
-    // Check if this is the last chunk
-    if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
-        // Optionally, you can do something with the final file here
-        const songFile = await removeDiskPath(finalPath);
-        console.log(`Upload completed: ${songFile}`);
-        const save_file_on_db = await this.update(track_id, {file: songFile})
+//     // Check if this is the last chunk
+//     if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
+//         // Optionally, you can do something with the final file here
+//         // rename uploaded file
+//         const songFile = await removeDiskPath(finalPath);
+//         console.log(`Upload completed: ${songFile}`);
+//         const save_file_on_db = await this.update(track_id, {file: songFile})
         
-        if((save_file_on_db).status){
-          return res.status(200).json({
-            status:'success',
-            message:"chunk uploaded",
-            completed: true,
-            file_path: songFile
-          })
-        }else{
-          return res.status(200).json({
-            status:'fail',
-            error: save_file_on_db.error
-          })
-        } 
-    }
-    let percentage_upload = 100 * ((parseFloat(chunkIndex) + 1)/parseFloat(totalChunks));
+//         if((save_file_on_db).status){
+//           return res.status(200).json({
+//             status:'success',
+//             message:"chunk uploaded",
+//             completed: true,
+//             file_path: songFile
+//           })
+//         }else{
+//           return res.status(200).json({
+//             status:'fail',
+//             error: save_file_on_db.error
+//           })
+//         } 
+//     }
+//     let percentage_upload = 100 * ((parseFloat(chunkIndex) + 1)/parseFloat(totalChunks));
 
-     console.log("upload progress: "+ Math.round(percentage_upload)+"%");
+//      console.log("upload progress: "+ Math.round(percentage_upload)+"%");
      
-    // return 'chunk uploaded'
-    return res.status(200).json({
-      status:'success',
-      message:"chunk uploaded",
-      completed: false
-    })
-}
+//     // return 'chunk uploaded'
+//     return res.status(200).json({
+//       status:'success',
+//       message:"chunk uploaded",
+//       completed: false
+//     })
+// }
 
-// exports.list = async(parsedUrl, user, res) => {
 
+// exports.list = async (parsedUrl, user, res) => {
 //   try {
 //     const queryString = parsedUrl.query;
 //     console.log(queryString);
-    
-//     const query = {}
-//     where = {}
-//     if( queryString.creator_id){
+
+//     const query = {};
+//     let where = {};
+
+//     if (queryString.creator_id) {
 //       where.user_id = parseInt(queryString.creator_id);
 //     }
 
-//     if(queryString.genre){
-//       where.genres =  { some: { genre: { id: parseInt(queryString.genre) } } } 
+//     if (queryString.genre) {
+//       where.genres = { some: { genre: { id: parseInt(queryString.genre) } } };
+//     }
+
+//     // Check for the 'like' query string
+//     if (queryString.like && queryString.like === 'true') {
+//       // If authenticated user is present, filter by liked tracks
+//       if (user) {
+//         where.likes = { some: { user: { id: user.id } } };
+//       } else {
+//         // Handle case where user is not authenticated (return empty list)
+//         return res.status(200).json({
+//           status: 'success',
+//           data: { tracks: [], meta: { total: 0, page: 1, last_page: 1, page_size: 10, nextPage: null } }
+//         });
+//       }
 //     }
 
 //     query.where = where;
-    
-//     if(queryString.latest && queryString.latest == "true"){
-//       query.orderBy = {id:"desc"}
+
+//     if (queryString.latest && queryString.latest === 'true') {
+//       query.orderBy = { id: 'desc' };
 //     }
 
 //     const page = queryString.page ? parseInt(queryString.page) : 1;
@@ -234,9 +250,9 @@ exports.addTrackFile = async (req, res, disk = 'local') => {
 
 //     query.skip = (page - 1) * page_size;
 //     query.take = page_size;
-    
+
 //     const tracks = await prisma.tracks.findMany(query);
-//     if(tracks){
+//     if (tracks) {
 //       const totalTracksCount = await prisma.tracks.count();
 //       const totalPages = Math.ceil(totalTracksCount / page_size);
 //       const paginatedResult = {
@@ -246,25 +262,90 @@ exports.addTrackFile = async (req, res, disk = 'local') => {
 //           page,
 //           last_page: totalPages,
 //           page_size,
-//           nextPage:page === totalPages ? null : page + 1,
+//           nextPage: page === totalPages ? null : page + 1,
 //         },
 //       };
 //       return res.status(200).json({
-//         status:'success',
-//         data:paginatedResult
-//       })
+//         status: 'success',
+//         data: paginatedResult,
+//       });
 //     }
 //   } catch (error) {
 //     console.log(error);
 //     return res.status(400).json({
-//       status:'fail',
-//       error:error,
-//       message:"Could not fetch tracks."
-//     })
+//       status: 'fail',
+//       error: error,
+//       message: 'Could not fetch tracks.',
+//     });
 //   }
-  
-  
-// }
+// };
+
+exports.addTrackFile = async (req, res, disk = 'local') => {
+  const { originalname, chunkIndex, totalChunks, track_id } = req.body;
+  const tempPath = req.file.path;
+  let uploadDir = file_disks[disk]['root'];
+  let tempUploadDir = path.join(uploadDir, "tracks");
+  const finalPath = path.join(tempUploadDir, originalname);
+
+  // Ensure the upload directory exists
+  await fs.ensureDir(tempUploadDir);
+
+  // Append the chunk to the final file
+  fs.appendFileSync(finalPath, fs.readFileSync(tempPath));
+
+  // Remove the temporary chunk file
+  await fs.remove(tempPath);
+
+  // Check if this is the last chunk
+  if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
+    // Rename the file after the final chunk is uploaded
+    const newFileName = `${Date.now()}_${originalname}`;
+    const newFilePath = path.join(tempUploadDir, newFileName);
+
+    try {
+      await fs.rename(finalPath, newFilePath);
+      console.log(`File renamed to: ${newFileName}`);
+
+      // Optionally, you can do something with the final file here
+      const songFile = await removeDiskPath(newFilePath);
+      console.log(`Upload completed: ${songFile}`);
+
+      // Update the track in the database with the new file path
+      const save_file_on_db = await this.update(track_id, { file: songFile });
+
+      if (save_file_on_db.status) {
+        return res.status(200).json({
+          status: 'success',
+          message: "Chunk uploaded and file renamed",
+          completed: true,
+          file_path: songFile,
+        });
+      } else {
+        return res.status(200).json({
+          status: 'fail',
+          error: save_file_on_db.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error renaming file:", error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to rename the file after upload.',
+      });
+    }
+  }
+
+  let percentage_upload = 100 * ((parseFloat(chunkIndex) + 1) / parseFloat(totalChunks));
+  console.log("Upload progress: " + Math.round(percentage_upload) + "%");
+
+  // Return chunk upload success response
+  return res.status(200).json({
+    status: 'success',
+    message: "Chunk uploaded",
+    completed: false,
+  });
+};
+
 
 exports.list = async (parsedUrl, user, res) => {
   try {
@@ -308,9 +389,22 @@ exports.list = async (parsedUrl, user, res) => {
     query.skip = (page - 1) * page_size;
     query.take = page_size;
 
+    // Include user details (creator of the track)
+    query.include = {
+      artiste: {
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+          profile_photo: true,
+        },
+      },
+    };
+
     const tracks = await prisma.tracks.findMany(query);
     if (tracks) {
-      const totalTracksCount = await prisma.tracks.count();
+      const totalTracksCount = await prisma.tracks.count({ where });
       const totalPages = Math.ceil(totalTracksCount / page_size);
       const paginatedResult = {
         tracks: tracks,

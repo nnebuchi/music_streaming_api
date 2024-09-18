@@ -109,6 +109,7 @@ exports.verifyOtp = async(req, res) => {
 
 
 exports.loginUser = async(req, res) => {
+  // return res.status.send('HHH')
   const req_data = {email, password} = req.body;
   const validate = await runValidation([
     {
@@ -175,3 +176,10 @@ exports.sendOtp = async(req, res) => {
   }
 }
 
+
+exports.logoutUser = async(req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader.split(' ')[1];
+  const exp = req.user.exp;
+  return await userAuthService.logoutUser(token, exp, res);
+}

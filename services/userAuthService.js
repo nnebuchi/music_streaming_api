@@ -208,7 +208,8 @@ const authenticate = async (email, password) => {
                 }
 
                 const options = {
-                    expiresIn: 365 * 24 * 60 * 60,
+                    expiresIn:  24 * 60 * 60,
+                    // expiresIn: 30 * 24 * 60 * 60,
                    
                 }
                 jwt.sign(payload, secretKey, options)
@@ -271,6 +272,34 @@ exports.loginUser = async(req_data, res) => {
     }
    
 }
+
+exports.logoutUser = async(token, exp, res) => {
+    try {
+        await prisma.blackListToken.create({
+            data:{
+                token:token,
+                exp:exp
+            }
+        });
+        return res.status(200).json({
+            status:"success",
+            message: " Signed out"
+        });
+    } catch (error) {
+        return res.status(400).json({
+            status:"fail",
+            error: error
+        });
+    }
+}
+
+// exports.checkTokenBlackList = (raw_token, decoded_token) => {
+//     const blackList = await prisma.find({
+//         where:{
+//             exp
+//         }
+//     })
+// }
 
 const authenticateJWT = (req, res, next) => {
     const authHeader = req.headers.authorization;

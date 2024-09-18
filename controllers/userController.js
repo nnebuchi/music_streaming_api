@@ -55,6 +55,8 @@ exports.deleteAccount = async (req, res) => {
 }
 
 exports.updateSocials = (req, res) => {
+  console.log('dddd');
+  
   return userService.updateSocials(req.user, req.body, res);
 }
 
