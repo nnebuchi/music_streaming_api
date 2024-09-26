@@ -62,7 +62,13 @@ exports.profile = async (user, res) => {
                     }}
                 },
                 followers:{
-                    select: {id:true, follower:true}
+                    select: {follower_id:true}
+                },
+                artistes:{
+                    select: {artiste_id:true}
+                },
+                likedTracks:{
+                    select: {track_id:true}
                 }
               },
         })

@@ -1,7 +1,8 @@
 module.exports = {
     storage: {
       local: {
-        root: 'public/uploads'
+        root: 'public/uploads',
+        // access_url: ''
       },
       s3: {
         bucket: 'your-bucket',

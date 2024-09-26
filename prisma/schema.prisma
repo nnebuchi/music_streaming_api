@@ -25,6 +25,7 @@ model Users {
     artistes            ArtisteToFollower[] @relation("FollowerArtistes")
     followers           ArtisteToFollower[] @relation("ArtisteFollowers")
     likedTracks         TrackLike[]
+    listenedTracks      TrackListen[]
     tracks              Tracks[]
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt @default(now())
@@ -87,12 +88,14 @@ model Tracks{
     duration        String?
     cover           String?
     file            String?
+    video_file      String?
     album_id        Int @default(0)
     release_date    String?
     featured        String?
     about           String? @db.Text
     genres          TrackToGenres[]
     likes           TrackLike[]
+    listens         TrackListen[]
     created_at      DateTime @default(now())
     updated_at      DateTime @updatedAt @default(now())
 }
@@ -135,8 +138,29 @@ model TrackLike {
     @@unique([track_id, user_id])
 }
 
+
 model BlackListToken {
     id Int @id @default(autoincrement())
     token   String @db.Text
     exp     Int
+}
+
+model Playback_Progress {
+    id                  Int         @id @default(autoincrement())
+    user_id             Int
+    track_id            Int
+    playback_position   Int         @default(1)
+    time_spent          Int         @default(1)
+    status              String      @default("playing")
+    updated_at          DateTime    @updatedAt @default(now())
+}
+
+model TrackListen {
+    id          Int    @id @default(autoincrement())
+    track_id    Int
+    user_id     Int
+    type        String
+    track       Tracks @relation(fields: [track_id], references: [id])
+    user        Users  @relation(fields: [user_id], references: [id])
+    @@unique([track_id, user_id])
 }

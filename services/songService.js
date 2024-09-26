@@ -157,130 +157,8 @@ exports.update = async (track_id, song_data) => {
   }
 };
 
-// exports.addTrackFile = async (req, res, disk = 'local') => {
-//   const { originalname, chunkIndex, totalChunks, track_id } = req.body;
-//     const tempPath = req.file.path;
-//     let uploadDir = file_disks[disk]['root'];
-//     let tempUploadDir =  path.join(uploadDir, "tracks");
-//     // path.join(__dirname, 'uploads', uploadId);
-//     const finalPath = path.join(tempUploadDir, originalname);
 
-//     // Ensure the upload directory exists
-//     await fs.ensureDir(tempUploadDir);
-
-//     // Append the chunk to the final file
-//     fs.appendFileSync(finalPath, fs.readFileSync(tempPath));
-
-//     // Remove the temporary chunk file
-//     await fs.remove(tempPath);
-
-//     // Check if this is the last chunk
-//     if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
-//         // Optionally, you can do something with the final file here
-//         // rename uploaded file
-//         const songFile = await removeDiskPath(finalPath);
-//         console.log(`Upload completed: ${songFile}`);
-//         const save_file_on_db = await this.update(track_id, {file: songFile})
-        
-//         if((save_file_on_db).status){
-//           return res.status(200).json({
-//             status:'success',
-//             message:"chunk uploaded",
-//             completed: true,
-//             file_path: songFile
-//           })
-//         }else{
-//           return res.status(200).json({
-//             status:'fail',
-//             error: save_file_on_db.error
-//           })
-//         } 
-//     }
-//     let percentage_upload = 100 * ((parseFloat(chunkIndex) + 1)/parseFloat(totalChunks));
-
-//      console.log("upload progress: "+ Math.round(percentage_upload)+"%");
-     
-//     // return 'chunk uploaded'
-//     return res.status(200).json({
-//       status:'success',
-//       message:"chunk uploaded",
-//       completed: false
-//     })
-// }
-
-
-// exports.list = async (parsedUrl, user, res) => {
-//   try {
-//     const queryString = parsedUrl.query;
-//     console.log(queryString);
-
-//     const query = {};
-//     let where = {};
-
-//     if (queryString.creator_id) {
-//       where.user_id = parseInt(queryString.creator_id);
-//     }
-
-//     if (queryString.genre) {
-//       where.genres = { some: { genre: { id: parseInt(queryString.genre) } } };
-//     }
-
-//     // Check for the 'like' query string
-//     if (queryString.like && queryString.like === 'true') {
-//       // If authenticated user is present, filter by liked tracks
-//       if (user) {
-//         where.likes = { some: { user: { id: user.id } } };
-//       } else {
-//         // Handle case where user is not authenticated (return empty list)
-//         return res.status(200).json({
-//           status: 'success',
-//           data: { tracks: [], meta: { total: 0, page: 1, last_page: 1, page_size: 10, nextPage: null } }
-//         });
-//       }
-//     }
-
-//     query.where = where;
-
-//     if (queryString.latest && queryString.latest === 'true') {
-//       query.orderBy = { id: 'desc' };
-//     }
-
-//     const page = queryString.page ? parseInt(queryString.page) : 1;
-//     const page_size = parseInt(process.env.TRACK_PER_PAGE);
-
-//     query.skip = (page - 1) * page_size;
-//     query.take = page_size;
-
-//     const tracks = await prisma.tracks.findMany(query);
-//     if (tracks) {
-//       const totalTracksCount = await prisma.tracks.count();
-//       const totalPages = Math.ceil(totalTracksCount / page_size);
-//       const paginatedResult = {
-//         tracks: tracks,
-//         meta: {
-//           total: totalTracksCount,
-//           page,
-//           last_page: totalPages,
-//           page_size,
-//           nextPage: page === totalPages ? null : page + 1,
-//         },
-//       };
-//       return res.status(200).json({
-//         status: 'success',
-//         data: paginatedResult,
-//       });
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     return res.status(400).json({
-//       status: 'fail',
-//       error: error,
-//       message: 'Could not fetch tracks.',
-//     });
-//   }
-// };
-
-exports.addTrackFile = async (req, res, disk = 'local') => {
+exports.addTrackFile = async (req, res, disk = 'local', type='audio') => {
   const { originalname, chunkIndex, totalChunks, track_id } = req.body;
   const tempPath = req.file.path;
   let uploadDir = file_disks[disk]['root'];
@@ -311,7 +189,15 @@ exports.addTrackFile = async (req, res, disk = 'local') => {
       console.log(`Upload completed: ${songFile}`);
 
       // Update the track in the database with the new file path
-      const save_file_on_db = await this.update(track_id, { file: songFile });
+      let save_file_on_db = '';
+      if(type === 'audio'){
+        save_file_on_db = await this.update(track_id, { file: songFile });
+      }
+
+      if(type === 'video'){
+        save_file_on_db = await this.update(track_id, { file: songFile });
+      }
+      
 
       if (save_file_on_db.status) {
         return res.status(200).json({
@@ -350,8 +236,6 @@ exports.addTrackFile = async (req, res, disk = 'local') => {
 exports.list = async (parsedUrl, user, res) => {
   try {
     const queryString = parsedUrl.query;
-    console.log(queryString);
-
     const query = {};
     let where = {};
 
@@ -359,7 +243,7 @@ exports.list = async (parsedUrl, user, res) => {
       where.user_id = parseInt(queryString.creator_id);
     }
 
-    if (queryString.genre) {
+    if (queryString.genre && queryString?.genre !== 'all') {
       where.genres = { some: { genre: { id: parseInt(queryString.genre) } } };
     }
 
@@ -367,7 +251,7 @@ exports.list = async (parsedUrl, user, res) => {
     if (queryString.like && queryString.like === 'true') {
       // If authenticated user is present, filter by liked tracks
       if (user) {
-        where.likes = { some: { user: { id: user.id } } };
+        where.likes = { some: { user: { id: parseInt(user.id) } } };
       } else {
         // Handle case where user is not authenticated (return empty list)
         return res.status(200).json({
@@ -431,14 +315,93 @@ exports.list = async (parsedUrl, user, res) => {
   }
 };
 
+  exports.guest_list = async (parsedUrl, user, res) => {
+    try {
+      const queryString = parsedUrl.query;
+      const query = {};
+      let where = {};
 
-exports.creators = async (user, res) => {
+      if (queryString.creator_id) {
+        where.user_id = parseInt(queryString.creator_id);
+      }
+
+      if (queryString.genre && queryString?.genre !== 'all') {
+        where.genres = { some: { genre: { id: parseInt(queryString.genre) } } };
+      }
+
+      // Check for the 'like' query string
+      if (queryString.like && queryString.like === 'true') {
+        // If authenticated user is present, filter by liked tracks
+        if (user) {
+          where.likes = { some: { user: { id: user.id } } };
+        } 
+      }
+
+      query.where = where;
+
+      if (queryString.latest && queryString.latest === 'true') {
+        query.orderBy = { id: 'desc' };
+      }
+
+      const page = queryString.page ? parseInt(queryString.page) : 1;
+      const page_size = parseInt(process.env.TRACK_PER_PAGE);
+
+      query.skip = (page - 1) * page_size;
+      query.take = page_size;
+
+      // Include user details (creator of the track)
+      query.include = {
+        artiste: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            profile_photo: true,
+          },
+        },
+      };
+
+      const tracks = await prisma.tracks.findMany(query);
+      if (tracks) {
+        const sanitizedTracks = tracks.map(track => {
+          const { file, ...rest } = track; // Exclude the 'file' property
+          return rest;
+        });
+        const totalTracksCount = await prisma.tracks.count({ where });
+        const totalPages = Math.ceil(totalTracksCount / page_size);
+        const paginatedResult = {
+          tracks: sanitizedTracks,
+          meta: {
+            total: totalTracksCount,
+            page,
+            last_page: totalPages,
+            page_size,
+            nextPage: page === totalPages ? null : page + 1,
+          },
+        };
+        return res.status(200).json({
+          status: 'success',
+          data: paginatedResult,
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      return res.status(400).json({
+        status: 'fail',
+        error: error,
+        message: 'Could not fetch tracks.',
+      });
+    }
+  };
+
+
+exports.creators = async (req, res) => {
   try {
+    console.log(req.user);
+    const where = req.user ? {is_artise: true, NOT: { id: req.user?.id } } : {is_artise: true}
     const allCreators = await prisma.users.findMany({
-      where: {
-        is_artise: true,
-        NOT: { id: user.id }, // More concise negation
-      },
+      where: where,
       include: {
         socialProfiles: {
           select: {
@@ -451,6 +414,11 @@ exports.creators = async (user, res) => {
                 slug: true,
               },
             },
+          },
+        },
+        _count: {
+          select: {
+            followers: true, // Counting the followers
           },
         },
       },
@@ -492,49 +460,267 @@ exports.genres = async (res) => {
     data:await prisma.genres.findMany({})
   });
 }
+// exports.likeTrack = async (req_data, res) => {
+//   const {track_id, user_id} = req_data
+//   // const {user_id} = req.user.id;
+//   try {
+//     let message = "";
+//     const existingLike = await prisma.trackLike.findMany({
+//       where: { track_id, user_id },
+//     });
+
+//     if (existingLike.length > 0) {
+//        await prisma.trackLike.deleteMany({
+//         where: { track_id, user_id },
+//       });
+//       message = "unliked";
+//       // return res.status(200).json({status:"success", message: 'unliked' });
+//     }else{
+//       await prisma.trackLike.create({
+//         data: { track_id, user_id },
+//       });
+    
+//       message = "liked";
+//       // return res.status(200).json({status:"success", message: 'liked', data:likedTracks });
+//     }
+
+//     const likedTracks = await prisma.trackLike.findMany({
+//       where: { user_id },
+//     }).map((track) => {
+//       return {track_id: track.track_id}
+//     });
+  
+
+//     return res.status(200).json({status:"success", message: message, data:likedTracks });
+
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ message: 'Error liking track' });
+//   }
+// }
+
+
 exports.likeTrack = async (req_data, res) => {
-  const {track_id, user_id} = req_data
-  // const {user_id} = req.user.id;
+  const { track_id, user_id } = req_data;
+
   try {
-    const existingLike = await prisma.trackLike.findMany({
+    const existingLike = await prisma.trackLike.findFirst({
       where: { track_id, user_id },
     });
-
-    if (existingLike.length > 0) {
-       await prisma.trackLike.deleteMany({
-        where: { track_id, user_id },
+    let message ="";
+    if (existingLike) {
+      await prisma.trackLike.delete({
+        where: { id:existingLike.id },
       });
-      return res.status(400).json({status:"success", message: 'unliked' });
-    }else{
+      message = "unliked";
+    } else {
       await prisma.trackLike.create({
         data: { track_id, user_id },
       });
-      return res.status(400).json({status:"success", message: 'liked' });
+      message = "liked";
     }
+
+    const likedTracks = await prisma.trackLike.findMany({
+      where: { user_id: user_id },
+      select: { track_id:true },
+    });
+
+    return res.status(200).json({ status: "success", message, data: likedTracks });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error liking track' });
   }
-}
-/*
+};
 
-if(all_creators){
-    
-    const formattedCreatorList = []
-    all_creators.forEach(async (creator) => {
-    await excludeCast(creator, creatorCast)
-    .then(formattedCreator => {
-      console.log(formattedCreator);
-      
-      formattedCreatorList.push(formattedCreator)
-      return res.status(200).json({ 
-        status: 'success',
-        data: formattedCreatorList
-      })
+exports.tracksList = async (options, user, selected_track_id, res) => {
+  try {
+    let whereClauses = [];
+    let queryParams = [];
+
+    if (options.creator_id) {
+      whereClauses.push(`tracks.user_id = ?`);
+      queryParams.push(parseInt(options.creator_id));
     }
-    )
+
+    if (options.genre & options.genre!='all') {
+      whereClauses.push(`
+        tracks.id IN (
+          SELECT track_id FROM TrackToGenres WHERE genre_id = ?
+        )
+      `);
+      queryParams.push(parseInt(options.genre));
+    }
+
+    if (options.like) {
+      if (user) {
+        whereClauses.push(`
+          tracks.id IN (
+            SELECT track_id FROM TrackLike WHERE user_id = ?
+          )
+        `);
+        queryParams.push(user.id);
+      } else {
+        return res.status(200).json({
+          status: 'success',
+          data: {
+            tracks: [],
+            meta: {
+              total: 0,
+              page: 1,
+              last_page: 1,
+              page_size: 10,
+              nextPage: null,
+            },
+          },
+        });
+      }
+    }
+
+    // Exclude selected track
+    whereClauses.push(`tracks.id != ?`);
+    queryParams.push(parseInt(selected_track_id));
+
+    let whereQuery = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    // Randomize results if options.latest is falsy, otherwise order by creation date
+    let orderByClause = options.latest ? `ORDER BY tracks.created_at DESC` : `ORDER BY RAND()`;
+
+    // Raw SQL query to fetch tracks and related artiste data
+    const tracks = await prisma.$queryRawUnsafe(`
+      SELECT tracks.*, 
+        users.id as artiste_id, 
+        users.first_name, 
+        users.last_name, 
+        users.email, 
+        users.profile_photo
+      FROM tracks 
+      JOIN users ON tracks.user_id = users.id
+      ${whereQuery}
+      ${orderByClause}
+      LIMIT 50;
+    `, ...queryParams);
+
+    const totalTracksCount = await prisma.$queryRawUnsafe(`
+      SELECT COUNT(*) as count
+      FROM tracks
+      ${whereQuery};
+    `, ...queryParams);
+
+    // Transform tracks data into desired format
+    const formattedTracks = tracks.map((track) => ({
+      id: track.id,
+      title: track.title,
+      user_id: track.user_id,
+      slug: track.slug,
+      duration: track.duration,
+      cover: track.cover,
+      file: track.file,
+      album_id: track.album_id,
+      release_date: track.release_date,
+      featured: track.featured,
+      about: track.about,
+      created_at: track.created_at,
+      updated_at: track.updated_at,
+      artiste: {
+        id: track.artiste_id,
+        first_name: track.first_name,
+        last_name: track.last_name,
+        email: track.email,
+        profile_photo: track.profile_photo,
+      },
+    }));
+
+    const paginatedResult = {
+      tracks: formattedTracks,
+      meta: {
+        // Convert BigInt to a regular number
+        total: Number(totalTracksCount[0].count) + 1, // Adding 1 for the excluded track
+        page: 1,
+        last_page: 1,
+        page_size: 10,
+        nextPage: null,
+      },
+    };
+
+    return res.status(200).json({
+      status: 'success',
+      data: paginatedResult,
     });
 
-    
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      status: 'fail',
+      error: error,
+      message: 'Could not fetch tracks.',
+    });
   }
-*/
+};
+
+
+
+
+exports.playTrack = async (track_id, parsedUrl, user, res) => {
+  const queryString = parsedUrl.query;
+  
+  let option = {}
+  if (queryString.list_type) {
+    switch (queryString.list_type) {
+      case "artiste":
+          option.creator_id = queryString.value
+        break;
+      case "genre":
+          option.genre = queryString.value
+        break;
+      case "recent_release":
+          option.latest = queryString.value
+        break;
+      default:
+        break;
+    }
+  }
+
+  return this.tracksList(option, user, track_id, res)
+}
+
+
+exports.recordAndUpdatePlay = async (user, track_id, time, status) => {
+  const now = new Date();
+
+  // Calculate the threshold for 30 minutes ago
+  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60000);
+
+ const existingPlay =  await prisma.playback_progress.findFirst({
+    where:{
+        user_id:user.id,
+        track_id:track_id,
+
+        OR: [
+          { status: 'playing' },
+          { status: 'paused' }
+        ],
+        updated_at: {
+          lt: thirtyMinutesAgo // Greater than or equal to 30 minutes ago
+        }
+    }
+
+  })
+  if(existingPlay){
+    await prisma.playback_Progress.update({
+      where: {
+        id: existingPlay.id, // Using the fetched item's ID
+      },
+      data: {
+        playback_position: time,
+        status: status, // Updating the status
+      },
+    });
+  }else{
+    await prisma.playback_Progress.create({
+        data: {
+          playback_position: time,
+          status: status, // Updating the status
+        },
+      });
+  }
+}

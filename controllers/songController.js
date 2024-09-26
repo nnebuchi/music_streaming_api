@@ -24,12 +24,16 @@ exports.list = async(req, res) => {
     return songService.list(parsedUrl, req.user, res)
 }
 
+exports.guest_list = async(req, res) => {
+    const parsedUrl = url.parse(req.url, true);
+    return songService.guest_list(parsedUrl, req.user, res)
+}
 exports.upload = async(req, res) => {
    return songService.send(req, res);
 };
 
 exports.creators = async(req, res) => {
-    return songService.creators(req.user, res);
+    return songService.creators(req, res);
 }
 
 exports.uploadFileChunk = async (req, res) => {
@@ -122,4 +126,11 @@ exports.likeTrack = async (req, res) => {
         }
     }
     
+}
+
+
+exports.playTrack = async (req, res) => {
+    const {track_id} = req.params
+    const parsedUrl = url.parse(req.url, true);
+    return songService.playTrack(track_id, parsedUrl, req.user, res)
 }
