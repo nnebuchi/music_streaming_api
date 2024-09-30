@@ -15,10 +15,10 @@ const path = require('path');
 const transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port: process.env.MAIL_PORT,
-    secure: false,
-    tls: {
-      rejectUnauthorized: false
-    },
+    secure: true,
+    // tls: {
+    //   rejectUnauthorized: false
+    // },
     auth: {
       user: process.env.MAIL_USERNAME,
       pass: process.env.MAIL_PASSWORD
@@ -28,38 +28,33 @@ const transporter = nodemailer.createTransport({
   });
 
 exports.send_mail = async (mail_data, subject, sender_name, res)=>{
-    console.log({
-        host: process.env.MAIL_HOST,
-        port: process.env.MAIL_PORT,
-        username: process.env.MAIL_USERNAME,
-        from: process.env.MAIL_FROM_ADDRESS
-      });
+    
     
     ejs.renderFile(
-        path.join(__dirname, '../../views/mail', 'account_verification.ejs'),
-        mail_data,
-        (err, data) => {
-            if (err) {
-                return 'Error rendering email template\n'+err;
-            }
+      path.join(__dirname, '../../views/mail', 'account_verification.ejs'),
+      mail_data,
+      (err, data) => {
+          if (err) {
+              return 'Error rendering email template\n'+err;
+          }
 
-            // Email options
-            const mailOptions = {
-                from: `${sender_name} ${process.env.MAIL_FROM_ADDRESS}`,
-                to: mail_data.recipient, // replace with actual recipient email
-                subject: subject,
-                html: data
-            };
-            
-            // Send email
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.log(error);
-                    
-                    return 'Error sending email';
-                }
-                return 'Email sent: ' + info.response;
-            });
-        }
+          // Email options
+          const mailOptions = {
+              from: `${sender_name} ${process.env.MAIL_FROM_ADDRESS}`,
+              to: mail_data.recipient, // replace with actual recipient email
+              subject: subject,
+              html: data
+          };
+          
+          // Send email
+          transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                  console.log(error);
+                  
+                  return 'Error sending email';
+              }
+              return 'Email sent: ' + info.response;
+          });
+      }
     );
 }
