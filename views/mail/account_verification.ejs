@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify your GHMusic App Email</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      padding: 20px;
+      max-width: 600px;
+      margin: 30px auto;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #F6FCFF;
+      
+    }
+
+    .heading{
+      background-color: #004768;
+      display: flex;
+      justify-content: left;
+      align-items: center;
+      padding: 12px 40px;
+      gap: 10px;
+      color: white;
+    }
+
+    .content h1{
+        text-align: center;
+    }
+
+    .heading img{
+        height: 70px;
+    
+    }
+    .header {
+      text-align: center;
+
+    }
+
+    .code-holder{
+        padding: 30px 50px;
+        background-color: white;
+        width: 200px;
+        height: 20px;
+        margin: 50px auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #E6F3F9;
+    }
+    .code {
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      margin: 20px auto;
+      background-color: #E6F3F9;
+      height: 100px;
+      padding-top: 30px;
+    }
+
+    .socials{
+        display: flex;
+        justify-content: center;
+        gap: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="heading">
+        <div><img src="https://2e15-102-90-42-120.ngrok-free.app/assets/images/icons/x-wbg.svg" alt=""></div><h1 class="header">GHMusic</h1>
+    </div>
+    <div class="content">
+        <h1 >Verify your email</h1>
+
+        <p>Hello  <%= name %>,</p>
+        <p>Thank you for downloading the GHMusic App.</p>
+        <p>Kindly enter the code below to complete your sign up process.</p>
+        <br>
+        <p>Code expires in the next 15 minutes</p>
+        <div class="code-holder">
+            <p class="code"><%= code %></p>
+
+        </div>
+        
+    </div>
+    
+   
+    <div class="footer">
+        <div class="socials">
+            <img src="assets/images/icons/facebook-wbg.svg" alt="">
+            <img src="assets/images/icons/instagram-wbg.svg" alt="">
+            <img src="assets/images/icons/x-wbg.svg" alt="">
+        </div>
+        <br>
+        <p>&copy; <script> document.write(new Date().getFullYear())</script> Gracious Hearts Music .  All Rights Reserved</p>
+    </div>
+  </div>
+</body>
+</html>

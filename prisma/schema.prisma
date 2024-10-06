@@ -1,0 +1,157 @@
+datasource db {
+    provider = "mysql"
+    url      = env("DB_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model Users {
+    //id         String   @id @map("_id") @default(auto()) @db.ObjectId
+    id                  Int     @id @default(autoincrement())
+    email               String   @unique
+    first_name          String
+    last_name           String
+    about               String? @db.Text
+    password            String
+    profile_photo       String? @db.Text
+    cover_photo         String? @db.Text
+    is_verified         Int @default(0)
+    is_artise           Boolean @default(false)
+    slug                String?
+    socialProfiles      UserSocialProfiles[]
+    // Self-referencing many-to-many relation
+    artistes            ArtisteToFollower[] @relation("FollowerArtistes")
+    followers           ArtisteToFollower[] @relation("ArtisteFollowers")
+    likedTracks         TrackLike[]
+    listenedTracks      TrackListen[]
+    tracks              Tracks[]
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt @default(now())
+}
+
+model Otps {
+    //id         String   @id @map("_id") @default(auto()) @db.ObjectId
+    id         Int      @id @default(autoincrement())
+    email      String   @unique
+    otp        String  
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+}
+
+model App_Settings {
+    id          Int @id @default(autoincrement())
+    subject     String @unique
+    data        String @db.Text
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+}
+
+model Socials {
+    id                  Int @id @default(autoincrement())
+    title               String @unique
+    logo                String @db.Text
+    slug                String @unique
+    userSocialProfiles  UserSocialProfiles[]
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+}
+
+model UserSocialProfiles {
+    id        Int     @id @default(autoincrement())
+    url       String
+    user_id   Int
+    social_id Int
+    user      Users   @relation(fields: [user_id], references: [id])
+    social    Socials @relation(fields: [social_id], references: [id])
+}
+
+
+model Albums{
+    id          Int     @id @default(autoincrement())
+    title       String
+    slug        String
+    user_id     Int
+    cover       String
+    description String @db.Text
+}
+
+model Tracks{
+    id              Int @id @default(autoincrement())
+    title           String?
+    user_id         Int
+    artiste         Users @relation(fields: [user_id], references: [id])  // Define relation to Users model
+    slug            String @unique
+    duration        String?
+    cover           String?
+    file            String?
+    video_file      String?
+    album_id        Int @default(0)
+    release_date    String?
+    featured        String?
+    about           String? @db.Text
+    genres          TrackToGenres[]
+    likes           TrackLike[]
+    listens         TrackListen[]
+    created_at      DateTime @default(now())
+    updated_at      DateTime @updatedAt @default(now())
+}
+
+model Genres {
+  id      Int     @id @default(autoincrement())
+  title   String
+  slug    String
+  tracks  TrackToGenres[]
+}
+
+model TrackToGenres {
+  id        Int     @id @default(autoincrement())
+  track     Tracks  @relation(fields: [track_id], references: [id])
+  genre     Genres  @relation(fields: [genre_id], references: [id])
+  track_id  Int
+  genre_id  Int
+}
+
+model ArtisteToFollower {
+    id          Int    @id @default(autoincrement())
+    
+    // Reference to the artiste (a user)
+    artiste     Users  @relation("ArtisteFollowers", fields: [artiste_id], references: [id])
+    artiste_id  Int
+    
+    // Reference to the follower (a user)
+    follower    Users  @relation("FollowerArtistes", fields: [follower_id], references: [id])
+    follower_id Int
+
+    created_at  DateTime @default(now())
+} 
+
+model TrackLike {
+    id          Int    @id @default(autoincrement())
+    track_id    Int
+    user_id     Int
+    track       Tracks @relation(fields: [track_id], references: [id])
+    user        Users  @relation(fields: [user_id], references: [id])
+}
+
+
+model BlackListToken {
+    id Int @id @default(autoincrement())
+    token   String @db.Text
+    exp     Int
+}
+
+
+model TrackListen {
+    id          Int    @id @default(autoincrement())
+    track_id    Int
+    user_id     Int
+    type        String
+    duration    Int
+    track       Tracks @relation(fields: [track_id], references: [id])
+    status      String      @default("playing")
+    user        Users  @relation(fields: [user_id], references: [id])
+    created_at  DateTime @default(now())
+    updated_at  DateTime    @updatedAt @default(now())
+}
