@@ -208,7 +208,7 @@ const authenticate = async (email, password) => {
                 }
 
                 const options = {
-                    expiresIn:  24 * 60 * 60,
+                    expiresIn: 7 * 24 * 60 * 60,
                     // expiresIn: 30 * 24 * 60 * 60,
                    
                 }

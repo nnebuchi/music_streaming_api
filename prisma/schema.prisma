@@ -65,8 +65,6 @@ model UserSocialProfiles {
     social_id Int
     user      Users   @relation(fields: [user_id], references: [id])
     social    Socials @relation(fields: [social_id], references: [id])
-
-    @@unique([user_id, social_id]) // Ensure that each user can have only one profile per social platform
 }
 
 
@@ -135,7 +133,6 @@ model TrackLike {
     user_id     Int
     track       Tracks @relation(fields: [track_id], references: [id])
     user        Users  @relation(fields: [user_id], references: [id])
-    @@unique([track_id, user_id])
 }
 
 
@@ -145,22 +142,16 @@ model BlackListToken {
     exp     Int
 }
 
-model Playback_Progress {
-    id                  Int         @id @default(autoincrement())
-    user_id             Int
-    track_id            Int
-    playback_position   Int         @default(1)
-    time_spent          Int         @default(1)
-    status              String      @default("playing")
-    updated_at          DateTime    @updatedAt @default(now())
-}
 
 model TrackListen {
     id          Int    @id @default(autoincrement())
     track_id    Int
     user_id     Int
     type        String
+    duration    Int
     track       Tracks @relation(fields: [track_id], references: [id])
+    status      String      @default("playing")
     user        Users  @relation(fields: [user_id], references: [id])
-    @@unique([track_id, user_id])
+    created_at  DateTime @default(now())
+    updated_at  DateTime    @updatedAt @default(now())
 }

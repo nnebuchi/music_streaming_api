@@ -12,16 +12,13 @@ exports.verifyAuthToken = (req, res, next) => {
     jwt.verify(token, process.env.AUTH_SEC_KEY, async (err, decoded) => {
       if (err) {
         console.log(err);
-        
-        
         return res.status(403).send('Unauthorized');
       }
       
       const isBlackListed = await this.tokenIsBlackListed(token)
       
       if(isBlackListed){
-        console.log(isBlackListed);
-        
+  
         return res.status(403).send('Unauthorized');
       }
 
@@ -76,10 +73,7 @@ exports.tokenIsBlackListed = async (raw_token) => {
             token:raw_token
         }
     });
-    console.log(blackList)
     if(blackList?.length > 0){
-      console.log("blackList");
-      
       return true
     }else{
       return false

@@ -1,14 +1,15 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma  = new PrismaClient();
+
+const prisma = require('../prisma/client');
 const argon2 = require('argon2');
 const {userCast, creatorCast} = require('../utils/auth');
 const { excludeCast} = require('../utils/generic');
 const multer = require('multer');
 const fs = require('fs');
-const {processPath} = require('../utils/file');
+const {processPath, extractDynamicPart} = require('../utils/file');
+const fileService = require('./fileService');
+
 
 exports.changePassword = async (old_password, new_password, user, res) => {
-   
     try {
         
         const user_db_data = await prisma.users.findUnique({
@@ -46,13 +47,12 @@ exports.changePassword = async (old_password, new_password, user, res) => {
             error: error
         });
     }
-
-    
 }
 
 exports.profile = async (user, res) => {
-   
     try {
+        
+        // prisma.$middleware(user_middleware);
         const user_data = await prisma.users.findUnique({
             where:{email:user.email},
             include: {
@@ -89,7 +89,6 @@ exports.profile = async (user, res) => {
 
 
 exports.updateProfile = async (req, res) => {
-
     try {
         const user = await prisma.users.findUnique({
             where: {email: req.user.email}
@@ -123,7 +122,7 @@ exports.updateProfile = async (req, res) => {
             })
         }
     } catch (error) {
-        
+   
     }
 }
 
@@ -280,9 +279,6 @@ exports.updateSocials = async (req_user, request_data, res) => {
     }
 };
 
-
-
-
 exports.socials = async (user, res) => {
     try {
         // const socials = await prisma.socials.findMany();
@@ -347,49 +343,106 @@ exports.deleteAccount = async (user, res) => {
     }
 }
 
-exports.updateProfilePhoto = async (user, file, res) => {
-    const file_path_on_db = await processPath(file);
-    console.log(file_path_on_db);
+// exports.updateProfilePhoto = async (user, file, res) => {
+//     const file_path_on_db = await processPath(file);
+//     console.log(file_path_on_db);
     
-    await prisma.users.findFirst({
-       where:{ id:user.id}
-    })
-    .then(user_profile => {
-         prisma.users.update({
-            where:{
-                id:user.id
-            },
-            data:{
-                profile_photo:file_path_on_db
-            }
-        })
-        .then(update_user_photo => {
+//     await prisma.users.findFirst({
+//        where:{ id:user.id}
+//     })
+//     .then(user_profile => {
+//          prisma.users.update({
+//             where:{
+//                 id:user.id
+//             },
+//             data:{
+//                 profile_photo:file_path_on_db
+//             }
+//         })
+//         .then(update_user_photo => {
             
-            // delete old photo from folder
-            if(user_profile.profile_photo){
-                // check of file path exists and delete it
-                if (fs.existsSync(`./public/${user_profile.profile_photo}`)) {
-                    fs.unlinkSync(`./public/${user_profile.profile_photo}`);
-                }
+//             // delete old photo from folder
+//             if(user_profile.profile_photo){
+//                 // check of file path exists and delete it
+//                 if (fs.existsSync(`./public/${user_profile.profile_photo}`)) {
+//                     fs.unlinkSync(`./public/${user_profile.profile_photo}`);
+//                 }
                 
-            }
-            return res.status(200).json({
-                status:"success",
-                message:"Profile Photo Updated",
-                file:file_path_on_db
-            });
-        })
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(200).json({
-            status:"fail",
-            message:"Profile Photo update failed",
-            error: err
-        });
-    })
+//             }
+//             return res.status(200).json({
+//                 status:"success",
+//                 message:"Profile Photo Updated",
+//                 file:file_path_on_db
+//             });
+//         })
+//     })
+//     .catch(err => {
+//         console.log(err);
+//         return res.status(200).json({
+//             status:"fail",
+//             message:"Profile Photo update failed",
+//             error: err
+//         });
+//     })
 
-}
+// }
+
+exports.updateProfilePhoto = async (req, directory, res, db_col=null) => {
+    console.log(db_col);
+    
+    if (req.file) {
+        const disk = process.env.ACTIVE_DISK;
+        let filePath;
+        try {
+            if (disk === 'cloudinary') {
+                filePath = await fileService.uploadToCloudinary(req, directory);
+                
+                
+            } else {
+                filePath = req.file.path; // or req.file.filename, depending on your setup
+            }
+            const data = {};
+            const user = req.user;
+            if(db_col) {
+                
+                data[db_col] = disk == 'cloudinary' ? await extractDynamicPart(filePath) : filePath
+                await prisma.users.update({
+                    where: {
+                        id: user.id,
+                    },
+                    data: data
+                });
+            }
+            // Delete old photo
+            if (user[db_col] && process.env.ACTIVE_DISK === 'cloudinary') {
+              const publicId = user[db_col].split('/').pop().split('.')[0];
+              await cloudinary.uploader.destroy(publicId);
+            } else if (user[db_col] && process.env.ACTIVE_DISK === 'local') {
+              // Delete local file
+              if (fs.existsSync(`./public/${user[db_col]}`)) {
+                fs.unlinkSync(`./public/${user[db_col]}`);
+              }
+            }
+        
+            return res.status(200).json({
+              status: 'success',
+              message: 'User file Updated',
+              file: filePath,
+            });
+          } catch (error) {
+            console.error(error);
+            return res.status(200).json({
+              status: 'fail',
+              message: 'User file update failed',
+              error: error,
+            });
+          }
+    } else {
+    // No file uploaded
+        res.send('No file uploaded.');
+    }
+    
+};
 
 exports.updateCoverPhoto = async (user, file, res) => {
     try {

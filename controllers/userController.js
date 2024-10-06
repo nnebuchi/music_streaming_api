@@ -1,6 +1,7 @@
 const { runValidation } = require('../lib/buchi');
 const userService =  require('../services/userService');
 
+
 exports.changePassword = async (req, res) => {
     const { old_password, new_password } = req.body;
     const validate = await runValidation([
@@ -55,27 +56,43 @@ exports.deleteAccount = async (req, res) => {
 }
 
 exports.updateSocials = (req, res) => {
-  console.log('dddd');
-  
   return userService.updateSocials(req.user, req.body, res);
 }
 
-exports.updateProfilePhoto = async(req, res) => {
+// exports.updateProfilePhoto = async(req, res) => {
   
+//   if (req.file) {
+//     return await userService.updateProfilePhoto(req.user, req.file, res)
+//   } else {
+//     // No file uploaded
+//     res.send('No file uploaded.');
+//   }
+// }
+
+// exports.updateProfilePhoto = async (req, res) => {
+//   if (req.file) {
+//     const directory = 'profile_photos';
+//     const filePath = await fileService.uploadToCloudinary(req, directory);
+//     return await userService.updateProfilePhoto(req.user, filePath, res);
+//   } else {
+//     // No file uploaded
+//     res.send('No file uploaded.');
+//   }
+// };
+
+exports.updateProfilePhoto = async (req, res) => {
   if (req.file) {
-    return await userService.updateProfilePhoto(req.user, req.file, res)
+    const directory = 'profile_photos';
+    return await userService.updateProfilePhoto(req, directory, res, 'profile_photo');
   } else {
-    // No file uploaded
     res.send('No file uploaded.');
   }
-}
-
+};
 exports.updateCoverPhoto = async(req, res) => {
-  
   if (req.file) {
-    return await userService.updateCoverPhoto(req.user, req.file, res)
+    const directory = 'cover_photos';
+    return await userService.updateProfilePhoto(req, directory, res, 'cover_photo');
   } else {
-    // No file uploaded
     res.send('No file uploaded.');
   }
 }

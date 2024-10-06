@@ -1,9 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma  = new PrismaClient();
+const prisma = require('../prisma/client');
 const multer = require('multer');
 const formidable = require('formidable');
 const path = require('path');
-const {processPath} = require('../utils/file');
+const {processPath, extractDynamicPart} = require('../utils/file');
 const file_config = require('../config/filesystem');
 const file_disks = file_config.storage;
 // const fs = require('fs');
@@ -13,6 +12,8 @@ const { excludeCast} = require('../utils/generic');
 const {songCast} = require('../utils/songs')
 const {removeDiskPath} = require('../utils/file');
 const {slugify} = require('../utils/generic');
+const { stat } = require('fs');
+const { moveTrackFileToCloudinary, handleCloudinaryUpload, uploadToCloudinary } = require('./fileService');
 
 exports.create = async(song_data, user) => {
     try {
@@ -61,23 +62,64 @@ exports.create = async(song_data, user) => {
 }
 
 exports.addTrackCoverPhoto = async (track_id, file, res) => {
-  const cover_path = await processPath(file);
-  const update_track = await this.update(track_id, {cover:cover_path});
-  // console.log(update_track);
-  
-  if(update_track.status){
-    
-    return res.status(200).json({
-      status: 'success',
-      message: "cover photo updated"
-    });
-  }else{
 
-    return res.status(400).json({
-      status: 'fail',
-      message: update_track.message,
-      error:update_track.error
-    });
+    const cover_path = await processPath(file);
+    const update_track = await this.update(track_id, {cover:cover_path});
+      // console.log(update_track);
+    
+    if(update_track.status){
+      
+      return res.status(200).json({
+        status: 'success',
+        message: "cover photo updated"
+      });
+    }else{
+
+      return res.status(400).json({
+        status: 'fail',
+        message: update_track.message,
+        error:update_track.error
+      });
+    }
+  
+  
+}
+
+exports.handleTrackCover = async (req, directory, res) => {
+  if (req.file) {
+    const disk = process.env.ACTIVE_DISK;
+    let filePath;
+    try {
+      if (disk === 'cloudinary') {
+        filePath = await uploadToCloudinary(req, directory); 
+      } else {
+          filePath = req.file.path;
+      }
+          
+      const cover_path = disk == 'cloudinary' ? await extractDynamicPart(filePath) : filePath
+      const update_track = await this.update(req.body.track_id, {cover:cover_path});
+      if(update_track.status){
+        return res.status(200).json({
+          status: 'success',
+          message: "Track cover photo updated"
+        });
+      }else{
+        return res.status(400).json({
+          status: 'fail',
+          message: update_track.message,
+          error:update_track.error
+        });
+      }
+    }catch (error) {
+      console.error(error);
+      return res.status(200).json({
+        status: 'fail',
+        message: 'Track cover update failed',
+        error: error,
+      });
+    }
+  }else {
+    res.send('No file uploaded.');
   }
 }
 
@@ -178,15 +220,24 @@ exports.addTrackFile = async (req, res, disk = 'local', type='audio') => {
   if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
     // Rename the file after the final chunk is uploaded
     const newFileName = `${Date.now()}_${originalname}`;
-    const newFilePath = path.join(tempUploadDir, newFileName);
+    let newFilePath = path.join(tempUploadDir, newFileName);
 
     try {
       await fs.rename(finalPath, newFilePath);
       console.log(`File renamed to: ${newFileName}`);
+      if(disk = 'cloudinary'){
+        console.log('uploading to cloudinary');
+        
+        newFilePath = await moveTrackFileToCloudinary(newFilePath, 'tracks');
+      }
 
       // Optionally, you can do something with the final file here
-      const songFile = await removeDiskPath(newFilePath);
-      console.log(`Upload completed: ${songFile}`);
+      const songFile = disk == 'local' ? 
+      await removeDiskPath(newFilePath) : 
+      await extractDynamicPart( newFilePath)
+      console.log("sing file: "+songFile);
+      
+      // console.log(`Upload completed: ${songFile}`);
 
       // Update the track in the database with the new file path
       let save_file_on_db = '';
@@ -195,7 +246,7 @@ exports.addTrackFile = async (req, res, disk = 'local', type='audio') => {
       }
 
       if(type === 'video'){
-        save_file_on_db = await this.update(track_id, { file: songFile });
+        save_file_on_db = await this.update(track_id, { video_file: songFile });
       }
       
 
@@ -204,7 +255,7 @@ exports.addTrackFile = async (req, res, disk = 'local', type='audio') => {
           status: 'success',
           message: "Chunk uploaded and file renamed",
           completed: true,
-          file_path: songFile,
+          file_path: newFilePath,
         });
       } else {
         return res.status(200).json({
@@ -216,6 +267,7 @@ exports.addTrackFile = async (req, res, disk = 'local', type='audio') => {
       console.error("Error renaming file:", error);
       return res.status(500).json({
         status: 'error',
+        error:error,
         message: 'Failed to rename the file after upload.',
       });
     }
@@ -501,11 +553,14 @@ exports.genres = async (res) => {
 
 
 exports.likeTrack = async (req_data, res) => {
-  const { track_id, user_id } = req_data;
-
+ 
+  const track_id = parseInt(req_data.track_id);
+  const user_id =  parseInt(req_data.user_id);
+  // console.log(track_id, user_id);
+  
   try {
     const existingLike = await prisma.trackLike.findFirst({
-      where: { track_id, user_id },
+      where: { track_id:track_id, user_id:user_id },
     });
     let message ="";
     if (existingLike) {
@@ -661,6 +716,8 @@ exports.tracksList = async (options, user, selected_track_id, res) => {
 
 
 exports.playTrack = async (track_id, parsedUrl, user, res) => {
+
+  
   const queryString = parsedUrl.query;
   
   let option = {}
@@ -684,43 +741,99 @@ exports.playTrack = async (track_id, parsedUrl, user, res) => {
 }
 
 
-exports.recordAndUpdatePlay = async (user, track_id, time, status) => {
-  const now = new Date();
 
-  // Calculate the threshold for 30 minutes ago
-  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60000);
+exports.recordPlayback = async (user, track_id, type, res) => {
+  const recordPlay = await prisma.trackListen.create({
+    data: {
+      user_id: user.id,
+      track_id: parseInt(track_id),
+      duration: 0,
+      type: type,
+      status: "playing",
+    },
+  });
 
- const existingPlay =  await prisma.playback_progress.findFirst({
+  if(recordPlay){ 
+    return res.status(200).json({
+      status: "success",
+      playback_id: recordPlay.id
+    })
+  }
+  
+};
+
+exports.updatePlayDuration = async (user, track_id, play_id, duration, res) => {
+
+  const existingPlay =  await prisma.trackListen.findFirst({
     where:{
         user_id:user.id,
-        track_id:track_id,
-
-        OR: [
-          { status: 'playing' },
-          { status: 'paused' }
-        ],
-        updated_at: {
-          lt: thirtyMinutesAgo // Greater than or equal to 30 minutes ago
-        }
+        track_id:parseInt(track_id),
+        id: parseInt(play_id),
+       
     }
 
   })
   if(existingPlay){
-    await prisma.playback_Progress.update({
+    await prisma.trackListen.update({
       where: {
         id: existingPlay.id, // Using the fetched item's ID
       },
       data: {
-        playback_position: time,
-        status: status, // Updating the status
+        duration: parseInt(existingPlay.duration) + parseInt(duration),
       },
     });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Playback duration updated successfully',
+    })
   }else{
-    await prisma.playback_Progress.create({
-        data: {
-          playback_position: time,
-          status: status, // Updating the status
-        },
-      });
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Playback instance not found',
+    })
+  }
+    // await prisma.trackListen.create({
+    //     data: {
+    //       user_id: user.id,
+    //       track_id: track_id,
+    //       duration: 0,
+    //       status: "playing", // Updating the status
+    //     },
+    //   });
+}
+
+   
+
+
+exports.updatePlayStatus = async (user, track_id, play_id, status, res) => {
+
+ const existingPlay =  await prisma.trackListen.findFirst({
+    where:{
+        user_id:user.id,
+        track_id:parseInt(track_id),
+        id: parseInt(play_id),
+    }
+
+  })
+  if(existingPlay){
+    await prisma.trackListen.update({
+      where: {
+        id: existingPlay.id, // Using the fetched item's ID
+      },
+      data: {
+        status: status,
+      },
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Playback status updated successfully',
+    })
+  }else{
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Playback instance not found',
+    })
   }
 }
